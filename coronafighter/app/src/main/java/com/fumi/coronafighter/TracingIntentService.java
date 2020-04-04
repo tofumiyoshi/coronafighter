@@ -39,6 +39,7 @@ import java.util.Map;
  */
 public class TracingIntentService extends IntentService {
     private static final String ACTION_START = "com.fumi.coronafighter.action.START";
+    private static final String ACTION_STOP = "com.fumi.coronafighter.action.STOP";
 
     private static final String PARAM_TIME_INERVAL = "com.fumi.coronafighter.param.TIME_INTERVAL";
     private static final String PARAM_MIN_DISTANCE = "com.fumi.coronafighter.param.MIN_DISTANCE";
@@ -69,7 +70,7 @@ public class TracingIntentService extends IntentService {
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         locationRequest.setInterval(180 * 1000);
-        //locationRequest.setSmallestDisplacement(15);
+        locationRequest.setSmallestDisplacement(15);
 
         locationCallback = new LocationCallback() {
             @Override
@@ -115,6 +116,19 @@ public class TracingIntentService extends IntentService {
         context.startService(intent);
     }
 
+    /**
+     * Starts this service to perform action Foo with the given parameters. If
+     * the service is already performing a task this action will be queued.
+     *
+     * @see IntentService
+     */
+    public static void stopActionTracing(Context context, int timeInterval, int minDistance) {
+        Intent intent = new Intent(context, TracingIntentService.class);
+        intent.setAction(ACTION_STOP);
+
+        context.startService(intent);
+    }
+
     @Override
     protected void onHandleIntent(Intent intent) {
         if (intent != null) {
@@ -125,19 +139,30 @@ public class TracingIntentService extends IntentService {
 
                 handleActionStart(timeInterval, minDistance);
             }
+            else if (ACTION_STOP.equals(action)) {
+                handleActionStop();
+            }
         }
     }
 
     /**
-     * Handle action Foo in the provided background thread with the provided
+     * Handle action Start in the provided background thread with the provided
      * parameters.
      */
     private void handleActionStart(int timeInterval, int minDistance) {
         locationRequest.setInterval(timeInterval * 1000);
-        //locationRequest.setSmallestDisplacement(minDistance);
+        locationRequest.setSmallestDisplacement(minDistance);
 
         mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mTracingLooper);
         //mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
+    }
+
+    /**
+     * Handle action Stop in the provided background thread with the provided
+     * parameters.
+     */
+    private void handleActionStop() {
+        mFusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
     private void traceUserInFireStore(Location location, FirebaseUser currentUser) {
