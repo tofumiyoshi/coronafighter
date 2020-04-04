@@ -11,6 +11,7 @@ import android.os.Message;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -21,13 +22,25 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.maps.android.heatmaps.HeatmapTileProvider;
+import com.google.maps.android.heatmaps.WeightedLatLng;
+import com.google.openlocationcode.OpenLocationCode;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -168,23 +181,82 @@ public class TracingIntentService extends IntentService {
     private void traceUserInFireStore(Location location, FirebaseUser currentUser) {
         // Create a new user with a first and last name
         Map<String, Object> activityInfo = new HashMap<>();
-        activityInfo.put("timestamp", Calendar.getInstance().getTime());
+        Date timestamp = Calendar.getInstance().getTime();
+        activityInfo.put("timestamp", timestamp);
         activityInfo.put("latitude", location.getLatitude());
         activityInfo.put("longitude", location.getLongitude());
 
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection(currentUser.getEmail())
-                .add(activityInfo)
-                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                .document(Constants.DATE_FORMAT_4_NAME.format(timestamp))
+                .set(activityInfo)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(DocumentReference documentReference) {
-                        Log.d("firbase-store", "DocumentSnapshot added with ID: " + documentReference.getId());
+                    public void onSuccess(Void aVoid) {
+                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firbase-store", "Error adding document", e);
+                        Log.w("firebase-store", "Error writing document", e);
+                    }
+                });
+
+        OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+        final String code = olc.getCode();
+
+        mFirebaseFirestore.collection("corona-infos")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+
+                        Calendar cal = Calendar.getInstance();
+                        cal.add(Calendar.DAY_OF_YEAR, -7);
+                        Date today = cal.getTime();
+
+                        Collection<WeightedLatLng> alertAreas = new ArrayList<WeightedLatLng>();
+                        if(queryDocumentSnapshots.getDocuments().size() > 0) {
+                            for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()){
+                                String docId = document.getId();
+
+                                if (!docId.startsWith(code)) {
+                                    continue;
+                                }
+
+                                Map<String, Object> data = document.getData();
+                                Iterator<String> i = data.keySet().iterator();
+                                int cnt = 0;
+                                while(i.hasNext()) {
+                                    String key = i.next();
+                                    Timestamp timestamp = (Timestamp)data.get(key);
+
+                                    if(timestamp.toDate().after(today)) {
+                                        cnt++;
+                                    }
+                                }
+
+                                if (cnt == 0) {
+                                    continue;
+                                }
+                                OpenLocationCode openLocationCode = new OpenLocationCode(docId);
+                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+                                double intensity = 0;
+                                if (cnt >= 2) {
+                                    intensity = 1.0;
+                                }
+                                else {
+                                    intensity = cnt/2.0;
+                                }
+                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
+                                alertAreas.add(value);
+                            }
+                        }
+
+                        app.setAlertAreas(alertAreas);
                     }
                 });
     }

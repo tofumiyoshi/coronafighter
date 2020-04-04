@@ -41,6 +41,8 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -55,11 +57,14 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
+import com.google.maps.android.heatmaps.HeatmapTileProvider;
+import com.google.maps.android.heatmaps.WeightedLatLng;
 import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -119,6 +124,13 @@ public class MapsActivity extends AppCompatActivity
                 CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, 15);
                 // カメラの位置に移動
                 mMap.moveCamera(camera);
+            }
+        });
+
+        mViewModel.getAlertAreas().observe(this, new Observer<Collection>() {
+            @Override
+            public void onChanged(final Collection alertAreas) {
+                addHeatMap(alertAreas);
             }
         });
     }
@@ -286,7 +298,6 @@ public class MapsActivity extends AppCompatActivity
         TracingIntentService.startActionTracing(getBaseContext(), 180, 15);
     }
 
-    private static final int CODE_LENGTH_TO_GENERATE = 11;
     private void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {
         // Create a new user with a first and last name
         Map<String, Object> activityInfo = new HashMap<>();
@@ -327,7 +338,8 @@ public class MapsActivity extends AppCompatActivity
                                     double longitude = doc.getDouble("longitude");
                                     Date timestamp = doc.getDate("timestamp");
 
-                                    OpenLocationCode olc = new OpenLocationCode(latitude, longitude, CODE_LENGTH_TO_GENERATE);
+                                    OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
+                                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                                     String locCode = olc.getCode();
                                     //Log.d("firebase-store", "locCode = " + locCode);
                                     registNewCoronavirusInfo(currentUser, locCode, timestamp);
@@ -408,4 +420,20 @@ public class MapsActivity extends AppCompatActivity
                 });
     }
 
+    private HeatmapTileProvider mProvider;
+    private TileOverlay mOverlay;
+
+    private void addHeatMap(Collection list) {
+        if (list == null || list.size() == 0) {
+            return;
+        }
+
+        // Create a heat map tile provider, passing it the latlngs of the police stations.
+        mProvider = new HeatmapTileProvider.Builder()
+                .weightedData(list)
+                .build();
+
+        // Add a tile overlay to the map, using the heat map tile provider.
+        mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+    }
 }

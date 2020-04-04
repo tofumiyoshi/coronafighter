@@ -13,6 +13,11 @@ import androidx.lifecycle.ViewModelStore;
 import androidx.lifecycle.ViewModelStoreOwner;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.google.maps.android.heatmaps.WeightedLatLng;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class CoronaFighterApplication extends Application implements ViewModelStoreOwner {
     private final String TAG = CoronaFighterApplication.class.getSimpleName();
@@ -22,6 +27,8 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
     private ViewModelStore mViewModelStore;
     private LatLng currentPosition;
     private MainHandler mMainHandler;
+
+    private Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
 
     private final class MainHandler extends Handler {
         public MainHandler(Looper looper) {
@@ -34,7 +41,6 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
             mModel.select(pos);
         }
     }
-
 
     @Override
     public void onCreate() {
@@ -76,5 +82,26 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
         }
 
         return mViewModelStore;
+    }
+
+    public void addAlertArea(WeightedLatLng value){
+        mAlertAreas.add(value);
+
+        mModel.selectAlertAreas(mAlertAreas);
+    }
+
+    public void removeAlertArea(WeightedLatLng value){
+        if(mAlertAreas.contains(value)) {
+            mAlertAreas.remove(value);
+
+            mModel.selectAlertAreas(mAlertAreas);
+        }
+    }
+
+    public void setAlertAreas(Collection<WeightedLatLng> list){
+        mAlertAreas.clear();
+        mAlertAreas.addAll(list);
+
+        mModel.selectAlertAreas(mAlertAreas);
     }
 }
