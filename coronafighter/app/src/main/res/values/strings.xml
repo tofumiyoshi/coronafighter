@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">coronafighter</string>
+    <string name="title_activity_maps">Corona Fighter</string>
+    <string name="logout">Logout</string>
+    <string name="trace_position_start">Trace Position Start</string>
+    <string name="trace_position_stop">Trace Position Stop</string>
+    <string name="infection_report">New Coronavirus Infection Report</string>
+    <string name="infection_report_cancel">New Coronavirus Infection Report Cancel</string>
+</resources>
