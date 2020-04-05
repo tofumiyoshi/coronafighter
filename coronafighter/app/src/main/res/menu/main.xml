@@ -7,14 +7,6 @@
         android:title="@string/logout"
         app:showAsAction="collapseActionView" />
     <item
-        android:id="@+id/trace_position_start"
-        android:title="@string/trace_position_start"
-        app:showAsAction="collapseActionView" />
-    <item
-        android:id="@+id/trace_position_stop"
-        android:title="@string/trace_position_stop"
-        app:showAsAction="collapseActionView" />
-    <item
         android:id="@+id/infection_report"
         android:title="@string/infection_report"
         app:showAsAction="collapseActionView" />

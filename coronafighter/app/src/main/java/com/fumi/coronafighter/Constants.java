@@ -9,5 +9,8 @@ public class Constants {
     public final static DateFormat DATE_FORMAT_4_NAME = new SimpleDateFormat("yyyyMMdd_HHmmss");
 
     public static final int OPEN_LOCATION_CODE_LENGTH_TO_GENERATE = 11;
-    public static final int OPEN_LOCATION_CODE_LENGTH_TO_COMPARE = 8;
+    public static final int OPEN_LOCATION_CODE_LENGTH_TO_COMPARE = 6;
+
+    public static final int INFECTION_SATURATION_CNT_MIN = 0;
+    public static final int INFECTION_SATURATION_CNT_MAX = 10;
 }

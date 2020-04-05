@@ -47,14 +47,17 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
@@ -67,6 +70,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +94,12 @@ public class MapsActivity extends AppCompatActivity
 
     private static final int RC_SIGN_IN = 123;
 
+    private LatLng currentLatLng;
+    private Marker currentMarker;
+
+    private ListenerRegistration mListenerStatus;
+    private int new_coronavirus_infection_flag = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -105,7 +115,7 @@ public class MapsActivity extends AppCompatActivity
 
         mAuth = FirebaseAuth.getInstance();
         // Check if user is signed in (non-null) and update UI accordingly.
-        FirebaseUser currentUser = mAuth.getCurrentUser();
+        final FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) {
             createSignInIntent();
         }
@@ -117,13 +127,31 @@ public class MapsActivity extends AppCompatActivity
         mViewModel.getSelected().observe(this, new Observer<LatLng>() {
             @Override
             public void onChanged(final LatLng latLng) {
-                mMap.addMarker(new MarkerOptions().position(latLng).
+                if (currentMarker != null) {
+                    currentMarker.remove();
+                }
+                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
                         visible(true).
                         title("Me"));
 
-                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, 15);
+                float zoom = mMap.getCameraPosition().zoom;
+                if (zoom < 10) {
+                    zoom = 15;
+                }
+                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
                 // カメラの位置に移動
                 mMap.moveCamera(camera);
+
+                if (new_coronavirus_infection_flag == 1) {
+                    OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                    String locCode = olc.getCode();
+                    Date timestamp = Calendar.getInstance().getTime();
+                    registNewCoronavirusInfo(currentUser, locCode, timestamp);
+                }
+
+                currentLatLng = latLng;
+                currentMarker = marker;
             }
         });
 
@@ -160,6 +188,7 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
+
         return true;
     }
 
@@ -169,12 +198,14 @@ public class MapsActivity extends AppCompatActivity
             case R.id.logout:
                 signOut();
                 break;
+            /*
             case R.id.trace_position_start:
                 TracingIntentService.startActionTracing(getBaseContext(), 180, 15);
                 break;
             case R.id.trace_position_stop:
                 stopService(new Intent(getBaseContext(), TracingIntentService.class));
                 break;
+             */
             case R.id.infection_report:
                 reportNewCoronavirusInfection(mAuth.getCurrentUser(), 1);
                 break;
@@ -296,6 +327,18 @@ public class MapsActivity extends AppCompatActivity
         mFirebaseFirestore = FirebaseFirestore.getInstance();
 
         TracingIntentService.startActionTracing(getBaseContext(), 180, 15);
+
+        mListenerStatus = mFirebaseFirestore.collection(mAuth.getCurrentUser().getEmail())
+                .whereEqualTo(FieldPath.documentId(),"status")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
+                            new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
+                            break;
+                        }
+                    }
+                });
     }
 
     private void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {
@@ -380,8 +423,12 @@ public class MapsActivity extends AppCompatActivity
         info.put(currentUser.getEmail().replace(".", "-"), timestamp);
 
         // Add a new document with a generated ID;
+        String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+        String locCode2 = locCode.substring(Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
         mFirebaseFirestore.collection("corona-infos")
-                .document(locCode)
+                .document(locCode1)
+                .collection("sub-areas")
+                .document(locCode2)
                 .set(info, SetOptions.merge())
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
@@ -424,6 +471,10 @@ public class MapsActivity extends AppCompatActivity
     private TileOverlay mOverlay;
 
     private void addHeatMap(Collection list) {
+        if (mOverlay != null) {
+            mOverlay.remove();
+        }
+
         if (list == null || list.size() == 0) {
             return;
         }

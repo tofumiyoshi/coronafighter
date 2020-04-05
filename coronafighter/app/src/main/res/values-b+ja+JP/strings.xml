@@ -3,8 +3,8 @@
     <string name="title_activity_maps">コロナ・ファイター</string>
 
     <string name="logout">ログアウト</string>
-    <string name="trace_position_start">位置追跡開始</string>
-    <string name="trace_position_stop">位置追跡停止</string>
-    <string name="infection_report">新型コロナウイルス感染通報</string>
-    <string name="infection_report_cancel">新型コロナウイルス感染通報取消し</string>
+    <string name="trace_position_start">追跡開始</string>
+    <string name="trace_position_stop">追跡停止</string>
+    <string name="infection_report">感染通報</string>
+    <string name="infection_report_cancel">通報取消し</string>
 </resources>

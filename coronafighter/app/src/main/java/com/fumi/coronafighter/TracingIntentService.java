@@ -28,8 +28,10 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.maps.android.heatmaps.WeightedLatLng;
@@ -41,6 +43,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -65,6 +68,7 @@ public class TracingIntentService extends IntentService {
     private FirebaseFirestore mFirebaseFirestore;
 
     private volatile Looper mTracingLooper;
+    private ListenerRegistration mListenerRegistration;
 
     public TracingIntentService() {
         super("TracingIntentService");
@@ -204,58 +208,74 @@ public class TracingIntentService extends IntentService {
                 });
 
         OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
-                Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
-        final String code = olc.getCode();
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+        if (olc == null) {
+            return;
+        }
+        final String LocCode = olc.getCode().substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
 
-        mFirebaseFirestore.collection("corona-infos")
+        if (mListenerRegistration != null) {
+            mListenerRegistration.remove();
+        }
+
+        // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
+        // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
+        // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
+        // +以降のJ88は建物コード（14×14m）を意味しています。
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -7);
+        final Date date1 = cal.getTime();
+
+        final String locCode1 = LocCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+        mListenerRegistration = mFirebaseFirestore.collection("corona-infos")
+                .document(locCode1)
+                .collection("sub-areas")
+                .whereGreaterThan(currentUser.getEmail().replace(".", "-"), date1)
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-
-                        Calendar cal = Calendar.getInstance();
-                        cal.add(Calendar.DAY_OF_YEAR, -7);
-                        Date today = cal.getTime();
-
                         Collection<WeightedLatLng> alertAreas = new ArrayList<WeightedLatLng>();
-                        if(queryDocumentSnapshots.getDocuments().size() > 0) {
-                            for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()){
-                                String docId = document.getId();
 
-                                if (!docId.startsWith(code)) {
-                                    continue;
-                                }
+                        List<DocumentSnapshot> documents = queryDocumentSnapshots.getDocuments();
+                        for(DocumentSnapshot document : documents){
+                            String locCode2 = document.getId();
+                            String code = locCode1 + locCode2;
 
-                                Map<String, Object> data = document.getData();
-                                Iterator<String> i = data.keySet().iterator();
-                                int cnt = 0;
-                                while(i.hasNext()) {
-                                    String key = i.next();
-                                    Timestamp timestamp = (Timestamp)data.get(key);
+                            Map<String, Object> data = document.getData();
+                            Iterator<String> i = data.keySet().iterator();
+                            int cnt = 0;
+                            while(i.hasNext()) {
+                                String key = i.next();
+                                Timestamp timestamp = (Timestamp)data.get(key);
 
-                                    if(timestamp.toDate().after(today)) {
-                                        cnt++;
-                                    }
+                                if(timestamp.toDate().after(date1)) {
+                                    cnt++;
                                 }
-
-                                if (cnt == 0) {
-                                    continue;
-                                }
-                                OpenLocationCode openLocationCode = new OpenLocationCode(docId);
-                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
-                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
-                                double intensity = 0;
-                                if (cnt >= 2) {
-                                    intensity = 1.0;
-                                }
-                                else {
-                                    intensity = cnt/2.0;
-                                }
-                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
-                                alertAreas.add(value);
                             }
-                        }
 
+                            if (cnt == 0) {
+                                continue;
+                            }
+                            OpenLocationCode openLocationCode = new OpenLocationCode(code);
+                            OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+                            LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+                            double intensity = 0.0;
+                            if (cnt >= Constants.INFECTION_SATURATION_CNT_MAX) {
+                                intensity = 1.0;
+                            }
+                            else if (cnt <= Constants.INFECTION_SATURATION_CNT_MIN) {
+                                intensity = 0.0;
+                            }
+                            else {
+                                intensity = ((double) cnt - Constants.INFECTION_SATURATION_CNT_MIN)/Constants.INFECTION_SATURATION_CNT_MAX;
+                            }
+                            if (intensity <= 0.0) {
+                                continue;
+                            }
+                            WeightedLatLng value = new WeightedLatLng(latlng, intensity);
+                            alertAreas.add(value);
+                        }
                         app.setAlertAreas(alertAreas);
                     }
                 });
