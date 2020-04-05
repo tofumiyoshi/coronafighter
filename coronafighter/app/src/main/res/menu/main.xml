@@ -14,5 +14,9 @@
         android:id="@+id/infection_report_cancel"
         android:title="@string/infection_report_cancel"
         app:showAsAction="collapseActionView" />
+    <item
+        android:id="@+id/refresh_alarm_areas"
+        android:title="@string/refresh_alarm_areas"
+        app:showAsAction="collapseActionView" />
 
 </menu>

@@ -52,6 +52,8 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
                 CoronaFighterApplication.this, factory).get(CurrentPositionViewModel.class);
 
         mMainHandler = new MainHandler(getMainLooper());
+
+        TracingIntentService.startActionTracing(getApplicationContext(), 180, 15);
     }
 
     @Override
@@ -82,26 +84,5 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
         }
 
         return mViewModelStore;
-    }
-
-    public void addAlertArea(WeightedLatLng value){
-        mAlertAreas.add(value);
-
-        mModel.selectAlertAreas(mAlertAreas);
-    }
-
-    public void removeAlertArea(WeightedLatLng value){
-        if(mAlertAreas.contains(value)) {
-            mAlertAreas.remove(value);
-
-            mModel.selectAlertAreas(mAlertAreas);
-        }
-    }
-
-    public void setAlertAreas(Collection<WeightedLatLng> list){
-        mAlertAreas.clear();
-        mAlertAreas.addAll(list);
-
-        mModel.selectAlertAreas(mAlertAreas);
     }
 }

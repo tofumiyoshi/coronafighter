@@ -15,6 +15,7 @@ import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -38,6 +39,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -58,6 +61,7 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
@@ -95,10 +99,12 @@ public class MapsActivity extends AppCompatActivity
     private static final int RC_SIGN_IN = 123;
 
     private LatLng currentLatLng;
+    private String currentLocCode;
     private Marker currentMarker;
 
     private ListenerRegistration mListenerStatus;
     private int new_coronavirus_infection_flag = 0;
+    private ListenerRegistration mListenerAlert;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,53 +120,6 @@ public class MapsActivity extends AppCompatActivity
         mapFragment.getMapAsync(this);
 
         mAuth = FirebaseAuth.getInstance();
-        // Check if user is signed in (non-null) and update UI accordingly.
-        final FirebaseUser currentUser = mAuth.getCurrentUser();
-        if (currentUser == null) {
-            createSignInIntent();
-        }
-
-        Application app = getApplication();
-        ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
-        mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
-        // Use the ViewModel
-        mViewModel.getSelected().observe(this, new Observer<LatLng>() {
-            @Override
-            public void onChanged(final LatLng latLng) {
-                if (currentMarker != null) {
-                    currentMarker.remove();
-                }
-                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
-                        visible(true).
-                        title("Me"));
-
-                float zoom = mMap.getCameraPosition().zoom;
-                if (zoom < 10) {
-                    zoom = 15;
-                }
-                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
-                // カメラの位置に移動
-                mMap.moveCamera(camera);
-
-                if (new_coronavirus_infection_flag == 1) {
-                    OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
-                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                    String locCode = olc.getCode();
-                    Date timestamp = Calendar.getInstance().getTime();
-                    registNewCoronavirusInfo(currentUser, locCode, timestamp);
-                }
-
-                currentLatLng = latLng;
-                currentMarker = marker;
-            }
-        });
-
-        mViewModel.getAlertAreas().observe(this, new Observer<Collection>() {
-            @Override
-            public void onChanged(final Collection alertAreas) {
-                addHeatMap(alertAreas);
-            }
-        });
     }
 
     @Override
@@ -189,6 +148,21 @@ public class MapsActivity extends AppCompatActivity
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
 
+        if (new_coronavirus_infection_flag == 0) {
+            MenuItem item = menu.findItem(R.id.infection_report);
+            item.setEnabled(true);
+
+            MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
+            item2.setEnabled(false);
+        }
+        else {
+            MenuItem item = menu.findItem(R.id.infection_report);
+            item.setEnabled(false);
+
+            MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
+            item2.setEnabled(true);
+        }
+
         return true;
     }
 
@@ -211,7 +185,10 @@ public class MapsActivity extends AppCompatActivity
                 break;
             case R.id.infection_report_cancel:
                 reportNewCoronavirusInfection(mAuth.getCurrentUser(), 0);
+                break;
 
+            case R.id.refresh_alarm_areas:
+                refreshAlertAreas(currentLocCode);
                 break;
         }
         return false;
@@ -259,6 +236,8 @@ public class MapsActivity extends AppCompatActivity
                 // sign-in flow using the back button. Otherwise check
                 // response.getError().getErrorCode() and handle the error.
                 Toast.makeText(this, "Sign in failed.", Toast.LENGTH_SHORT).show();
+
+                finish();
             }
         }
     }
@@ -315,18 +294,66 @@ public class MapsActivity extends AppCompatActivity
 
     private void initialize() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION},
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     LOCATION_PERMISSION_REQUEST_CODE);
             return;
         }
+        if (mAuth.getCurrentUser() == null) {
+            createSignInIntent();
+            return;
+        }
+
         mFirebaseFirestore = FirebaseFirestore.getInstance();
 
-        TracingIntentService.startActionTracing(getBaseContext(), 180, 15);
+        Application app = getApplication();
+        ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
+        mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
+        // Use the ViewModel
+        mViewModel.getSelected().observe(this, new Observer<LatLng>() {
+            @Override
+            public void onChanged(final LatLng latLng) {
+                if (currentMarker != null) {
+                    currentMarker.remove();
+                }
+                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
+                        visible(true).
+                        title("Me"));
+                //Circle circle = mMap.addCircle(new CircleOptions()
+                //        .center(latLng)
+                //        .radius(20)
+                //        .strokeColor(Color.GREEN)
+                //        .fillColor(Color.YELLOW));
+
+                float zoom = mMap.getCameraPosition().zoom;
+                if (zoom < 10) {
+                    zoom = 15;
+                }
+                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
+                // カメラの位置に移動
+                mMap.moveCamera(camera);
+
+                OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                String locCode = olc.getCode();
+
+                if (new_coronavirus_infection_flag == 1) {
+                    Date date1 = Calendar.getInstance().getTime();
+                    Timestamp timestamp = new Timestamp(date1);
+                    registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+                }
+
+                currentLatLng = latLng;
+                currentMarker = marker;
+
+                if (currentLocCode == null ||
+                        !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
+                    refreshAlertAreas(locCode);
+                }
+                currentLocCode = locCode;
+            }
+        });
 
         mListenerStatus = mFirebaseFirestore.collection(mAuth.getCurrentUser().getEmail())
                 .whereEqualTo(FieldPath.documentId(),"status")
@@ -335,13 +362,32 @@ public class MapsActivity extends AppCompatActivity
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
                             new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
+
+                            invalidateOptionsMenu();
                             break;
+                        }
+                    }
+                });
+
+        mListenerAlert = mFirebaseFirestore.collection("corona-infos")
+                .whereEqualTo(FieldPath.documentId(),"update-info")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        if(currentLatLng != null) {
+                            OpenLocationCode olc = new OpenLocationCode(currentLatLng.latitude, currentLatLng.longitude,
+                                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                            String locCode = olc.getCode();
+
+                            refreshAlertAreas(locCode);
                         }
                     }
                 });
     }
 
     private void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {
+        mListenerAlert.remove();
+
         // Create a new user with a first and last name
         Map<String, Object> activityInfo = new HashMap<>();
         activityInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
@@ -350,7 +396,7 @@ public class MapsActivity extends AppCompatActivity
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection(currentUser.getEmail())
                 .document("status")
-                .set(activityInfo)
+                .set(activityInfo, SetOptions.merge())
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
@@ -364,11 +410,14 @@ public class MapsActivity extends AppCompatActivity
                     }
                 });
 
+        // 警報基準
+        // 日時：　過去７日間
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -7);
+        final Date date1 = cal.getTime();
+        Timestamp timestamp = new Timestamp(date1);
 
         if (new_coronavirus_infection_flag == 1) {
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.DAY_OF_YEAR, -7);
-            Date timestamp = cal.getTime();
             mFirebaseFirestore.collection(currentUser.getEmail()).whereGreaterThan("timestamp", timestamp)
                     .get()
                     .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
@@ -379,7 +428,7 @@ public class MapsActivity extends AppCompatActivity
                                 for(DocumentSnapshot doc: snapshot.getDocuments()){
                                     double latitude = doc.getDouble("latitude");
                                     double longitude = doc.getDouble("longitude");
-                                    Date timestamp = doc.getDate("timestamp");
+                                    Timestamp timestamp = doc.getTimestamp("timestamp");
 
                                     OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
                                             Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
@@ -400,14 +449,15 @@ public class MapsActivity extends AppCompatActivity
                         public void onComplete(@NonNull Task<QuerySnapshot> task) {
                             if (task.isSuccessful()) {
                                 QuerySnapshot snapshot = task.getResult();
-                                for(DocumentSnapshot doc: snapshot.getDocuments()){
-                                    Object timestamp = doc.getData().get(currentUser.getEmail().replace(".", "-"));
-                                    if (timestamp == null) {
+                                List<DocumentSnapshot> list = snapshot.getDocuments();
+                                for(DocumentSnapshot doc: list){
+                                    String docId = doc.getId();
+                                    if (docId.equals("update-info")) {
                                         continue;
                                     }
-                                    String locCode = doc.getId();
+
                                     //Log.d("firebase-store", "locCode = " + locCode);
-                                    removeNewCoronavirusInfo(currentUser, locCode);
+                                    removeNewCoronavirusInfo(currentUser, docId);
                                 }
                             } else {
                                 Log.d("firebase-store", "get failed with ", task.getException());
@@ -415,16 +465,73 @@ public class MapsActivity extends AppCompatActivity
                         }
                     });
         }
+
+        reportNewCoronavirusInfectionComlete(timestamp);
     }
 
-    private void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode, Date timestamp) {
+    private void reportNewCoronavirusInfectionComlete(Timestamp timestamp) {
+        mListenerAlert = mFirebaseFirestore.collection("corona-infos")
+                .whereEqualTo(FieldPath.documentId(),"update-info")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        if(currentLatLng != null) {
+                            OpenLocationCode olc = new OpenLocationCode(currentLatLng.latitude, currentLatLng.longitude,
+                                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                            String locCode = olc.getCode();
+
+                            refreshAlertAreas(locCode);
+                        }
+                    }
+                });
+
+        Map<String, Object> info2 = new HashMap<>();
+        info2.put("timestamp", timestamp);
+        mFirebaseFirestore.collection("corona-infos")
+                .document("update-info")
+                .set(info2, SetOptions.merge())
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w("firebase-store", "Error writing document", e);
+                    }
+                });
+    }
+
+    private void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode, Timestamp timestamp) {
         // Create a new user with a first and last name
         Map<String, Object> info = new HashMap<>();
         info.put(currentUser.getEmail().replace(".", "-"), timestamp);
 
+        Map<String, Object> info2 = new HashMap<>();
+        info2.put("timestamp", timestamp);
+
         // Add a new document with a generated ID;
         String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
         String locCode2 = locCode.substring(Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+
+        mFirebaseFirestore.collection("corona-infos")
+                .document(locCode1)
+                .set(info2, SetOptions.merge())
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w("firebase-store", "Error writing document", e);
+                    }
+                });
+
         mFirebaseFirestore.collection("corona-infos")
                 .document(locCode1)
                 .collection("sub-areas")
@@ -444,25 +551,54 @@ public class MapsActivity extends AppCompatActivity
                 });
     }
 
-    private void removeNewCoronavirusInfo(FirebaseUser currentUser, String locCode) {
+    private void removeNewCoronavirusInfo(final FirebaseUser currentUser, final String locCode) {
+        final String field_key = currentUser.getEmail().replace(".", "-");
+
         // Create a new user with a first and last name
-        Map<String, Object> info = new HashMap<>();
-        info.put(currentUser.getEmail().replace(".", "-"), FieldValue.delete());
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -3600);
+        Date date1 = cal.getTime();
+        Timestamp timeStart = new Timestamp(date1);
 
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection("corona-infos")
                 .document(locCode)
-                .update(info)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                .collection("sub-areas")
+                .whereGreaterThan(field_key, timeStart)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Log.d("firebase-store", document.getId() + " => " + document.getData());
+                                String locCode2 = document.getId();
+
+                                Map<String, Object> info = new HashMap<>();
+                                info.put(field_key, FieldValue.delete());
+
+                                mFirebaseFirestore.collection("corona-infos")
+                                        .document(locCode)
+                                        .collection("sub-areas")
+                                        .document(locCode2)
+                                        .update(info)
+                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                            @Override
+                                            public void onSuccess(Void aVoid) {
+                                                Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                                            }
+                                        })
+                                        .addOnFailureListener(new OnFailureListener() {
+                                            @Override
+                                            public void onFailure(@NonNull Exception e) {
+                                                Log.w("firebase-store", "Error writing document", e);
+                                            }
+                                        });
+
+                            }
+                        } else {
+                            Log.d("firebase-store", "Error getting documents: ", task.getException());
+                        }
                     }
                 });
     }
@@ -486,5 +622,83 @@ public class MapsActivity extends AppCompatActivity
 
         // Add a tile overlay to the map, using the heat map tile provider.
         mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+    }
+
+    private void refreshAlertAreas(String locCode) {
+        if (locCode == null || locCode.length() == 0) {
+            return;
+        }
+
+        // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
+        // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
+        // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
+        // +以降のJ88は建物コード（14×14m）を意味しています。
+
+        // 警報基準
+        // 日時：　過去７日間
+        // エリア：　PQが都市コード（5×5km）
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -7);
+        final Date date1 = cal.getTime();
+
+        final String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+        mFirebaseFirestore.collection("corona-infos")
+                .document(locCode1)
+                .collection("sub-areas")
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+                            Collection<WeightedLatLng> alertAreas = new ArrayList<WeightedLatLng>();
+
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Log.d("firebase-store", document.getId() + " => " + document.getData());
+
+                                String locCode2 = document.getId();
+                                String code = locCode1 + locCode2;
+
+                                Map<String, Object> data = document.getData();
+                                Iterator<String> i = data.keySet().iterator();
+                                int cnt = 0;
+                                while(i.hasNext()) {
+                                    String key = i.next();
+                                    Timestamp timestamp = (Timestamp)data.get(key);
+
+                                    if(timestamp.toDate().after(date1)) {
+                                        cnt++;
+                                    }
+                                }
+
+                                if (cnt == 0) {
+                                    continue;
+                                }
+                                OpenLocationCode openLocationCode = new OpenLocationCode(code);
+                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+                                double intensity = 0.0;
+                                if (cnt >= Constants.INFECTION_SATURATION_CNT_MAX) {
+                                    intensity = 1.0;
+                                }
+                                else if (cnt <= Constants.INFECTION_SATURATION_CNT_MIN) {
+                                    intensity = 0.0;
+                                }
+                                else {
+                                    intensity = ((double) cnt - Constants.INFECTION_SATURATION_CNT_MIN)/Constants.INFECTION_SATURATION_CNT_MAX;
+                                }
+                                if (intensity <= 0.0) {
+                                    continue;
+                                }
+                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
+                                alertAreas.add(value);
+                            }
+
+                            addHeatMap(alertAreas);
+                        } else {
+                            Log.d("firebase-store", "Error getting documents: ", task.getException());
+                        }
+                    }
+                });
     }
 }

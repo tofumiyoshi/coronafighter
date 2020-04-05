@@ -6,4 +6,5 @@
     <string name="trace_position_stop">Trace Position Stop</string>
     <string name="infection_report">Infection Report</string>
     <string name="infection_report_cancel">Report Cancel</string>
+    <string name="refresh_alarm_areas">Refresh Alarm Areas</string>
 </resources>
