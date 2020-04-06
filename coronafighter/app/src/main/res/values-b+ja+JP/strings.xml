@@ -8,4 +8,8 @@
     <string name="infection_report">感染通報</string>
     <string name="infection_report_cancel">通報取消し</string>
     <string name="refresh_alarm_areas">警報エリア更新</string>
+
+    <string name="infection_report_confirm_msg">新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
+    <string name="infection_report_confirm_msg_by_tracing">履歴データをもとに新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
+
 </resources>

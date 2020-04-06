@@ -11,8 +11,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.lifecycle.ViewModelStoreOwner;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.Application;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -100,11 +102,13 @@ public class MapsActivity extends AppCompatActivity
 
     private LatLng currentLatLng;
     private String currentLocCode;
-    private Marker currentMarker;
+    //private Marker currentMarker;
 
     private ListenerRegistration mListenerStatus;
     private int new_coronavirus_infection_flag = 0;
     private ListenerRegistration mListenerAlert;
+
+    final Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -181,14 +185,28 @@ public class MapsActivity extends AppCompatActivity
                 break;
              */
             case R.id.infection_report:
-                reportNewCoronavirusInfection(mAuth.getCurrentUser(), 1);
+                new AlertDialog.Builder(MapsActivity.this)
+                        .setTitle(R.string.infection_report)
+                        .setMessage(R.string.infection_report_confirm_msg_by_tracing)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                reportNewCoronavirusInfection(mAuth.getCurrentUser(), 1);
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+
                 break;
             case R.id.infection_report_cancel:
                 reportNewCoronavirusInfection(mAuth.getCurrentUser(), 0);
                 break;
 
             case R.id.refresh_alarm_areas:
-                refreshAlertAreas(currentLocCode);
+                ArrayList<String> locCodes = new ArrayList<String>();
+                locCodes.add(currentLocCode);
+
+                refreshAlertAreas(locCodes);
                 break;
         }
         return false;
@@ -206,6 +224,79 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
+        mMap.setMyLocationEnabled(true);
+        mMap.getUiSettings().setMyLocationButtonEnabled(true);
+        mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
+            @Override
+            public boolean onMyLocationButtonClick() {
+                if (currentLocCode != null) {
+                    ArrayList<String> locCodes = new ArrayList<String>();
+                    locCodes.add(currentLocCode);
+                    refreshAlertAreas(locCodes);
+                }
+                return false;
+            }
+        });
+        mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
+            @Override
+            public void onMyLocationClick(@NonNull Location location) {
+                OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
+                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                String locCode = olc.getCode();
+
+                if (currentLocCode == null || !currentLocCode.equals(locCode)) {
+                    ArrayList<String> locCodes = new ArrayList<String>();
+                    locCodes.add(locCode);
+                    refreshAlertAreas(locCodes);
+
+                    currentLocCode = locCode;
+                }
+            }
+        });
+
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                String locCode = olc.getCode();
+
+                if (currentLocCode == null ||
+                        !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
+                    ArrayList<String> locCodes = new ArrayList<String>();
+                    locCodes.add(locCode);
+                    refreshAlertAreas(locCodes);
+
+                    if (currentLocCode == null) {
+                        currentLocCode = locCode;
+                    }
+                }
+            }
+        });
+
+        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(final LatLng latLng) {
+                new AlertDialog.Builder(MapsActivity.this)
+                        .setTitle(R.string.infection_report)
+                        .setMessage(R.string.infection_report_confirm_msg)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                                String locCode = olc.getCode();
+
+                                Date date1 = Calendar.getInstance().getTime();
+                                Timestamp timestamp = new Timestamp(date1);
+                                registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
     }
 
     public void createSignInIntent() {
@@ -314,12 +405,12 @@ public class MapsActivity extends AppCompatActivity
         mViewModel.getSelected().observe(this, new Observer<LatLng>() {
             @Override
             public void onChanged(final LatLng latLng) {
-                if (currentMarker != null) {
-                    currentMarker.remove();
-                }
-                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
-                        visible(true).
-                        title("Me"));
+                //                if (currentMarker != null) {
+                //                    currentMarker.remove();
+                //                }
+                //                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
+                //                        visible(true).
+                //                        title("Me"));
                 //Circle circle = mMap.addCircle(new CircleOptions()
                 //        .center(latLng)
                 //        .radius(20)
@@ -345,11 +436,15 @@ public class MapsActivity extends AppCompatActivity
                 }
 
                 currentLatLng = latLng;
-                currentMarker = marker;
+                //                currentMarker = marker;
 
                 if (currentLocCode == null ||
                         !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
-                    refreshAlertAreas(locCode);
+
+                    ArrayList<String> locCodes = new ArrayList<String>();
+                    locCodes.add(locCode);
+
+                    refreshAlertAreas(locCodes);
                 }
                 currentLocCode = locCode;
             }
@@ -379,7 +474,18 @@ public class MapsActivity extends AppCompatActivity
                                     Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                             String locCode = olc.getCode();
 
-                            refreshAlertAreas(locCode);
+
+                            if (currentLocCode == null ||
+                                    !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
+                                ArrayList<String> locCodes = new ArrayList<String>();
+                                locCodes.add(locCode);
+
+                                refreshAlertAreas(locCodes);
+
+                                if (currentLocCode == null ) {
+                                    currentLocCode = locCode;
+                                }
+                            }
                         }
                     }
                 });
@@ -480,7 +586,16 @@ public class MapsActivity extends AppCompatActivity
                                     Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                             String locCode = olc.getCode();
 
-                            refreshAlertAreas(locCode);
+                            if (currentLocCode == null ||
+                                    !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
+                                ArrayList<String> locCodes = new ArrayList<String>();
+                                locCodes.add(locCode);
+                                refreshAlertAreas(locCodes);
+
+                                if (currentLocCode == null) {
+                                    currentLocCode = locCode;
+                                }
+                            }
                         }
                     }
                 });
@@ -624,16 +739,72 @@ public class MapsActivity extends AppCompatActivity
         mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
     }
 
-    private void refreshAlertAreas(String locCode) {
-        if (locCode == null || locCode.length() == 0) {
+    private void refreshAlertAreas(final ArrayList<String> locCodes) {
+        if (locCodes == null || locCodes.size() == 0) {
             return;
         }
 
+        mAlertAreas.clear();
         // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
         // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
         // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
         // +以降のJ88は建物コード（14×14m）を意味しています。
+        addHeatMap(mAlertAreas);
 
+        ArrayList<String> locCode1s = new ArrayList<String>();
+        for(String locCode : locCodes){
+            String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
+            if (!locCode1s.contains(locCode1)) {
+                locCode1s.add(locCode1);
+            }
+        }
+
+        mFirebaseFirestore.collection("corona-infos")
+                .whereIn(FieldPath.documentId(), locCode1s)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                final String locCode1 = document.getId();
+
+                                document.getReference()
+                                        .collection("sub-areas")
+                                        .get()
+                                        .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                                            @Override
+                                            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                                                if (task.isSuccessful()) {
+                                                    CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+
+                                                    for (QueryDocumentSnapshot document : task.getResult()) {
+                                                        Log.d("firebase-store", document.getId() + " => " + document.getData());
+
+                                                        String locCode2 = document.getId();
+                                                        String code = locCode1 + locCode2;
+
+                                                        Map<String, Object> data = document.getData();
+                                                        addAlertAreas(code, data, mAlertAreas);
+                                                    }
+
+                                                    addHeatMap(mAlertAreas);
+
+                                                } else {
+                                                    Log.d("firebase-store", "Error getting documents: ", task.getException());
+                                                }
+                                            }
+                                        });
+                            }
+                        }
+                        else {
+                            Log.d("firebase-store", "Error getting documents: ", task.getException());
+                        }
+                    }
+                });
+    }
+
+    public void addAlertAreas(String code, Map<String, Object> data, Collection<WeightedLatLng> alertAreas) {
         // 警報基準
         // 日時：　過去７日間
         // エリア：　PQが都市コード（5×5km）
@@ -641,64 +812,37 @@ public class MapsActivity extends AppCompatActivity
         cal.add(Calendar.DAY_OF_YEAR, -7);
         final Date date1 = cal.getTime();
 
-        final String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
-        mFirebaseFirestore.collection("corona-infos")
-                .document(locCode1)
-                .collection("sub-areas")
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                            Collection<WeightedLatLng> alertAreas = new ArrayList<WeightedLatLng>();
+        Iterator<String> i = data.keySet().iterator();
+        int cnt = 0;
+        while(i.hasNext()) {
+            String key = i.next();
+            Timestamp timestamp = (Timestamp)data.get(key);
 
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                Log.d("firebase-store", document.getId() + " => " + document.getData());
+            if(timestamp.toDate().after(date1)) {
+                cnt++;
+            }
+        }
 
-                                String locCode2 = document.getId();
-                                String code = locCode1 + locCode2;
-
-                                Map<String, Object> data = document.getData();
-                                Iterator<String> i = data.keySet().iterator();
-                                int cnt = 0;
-                                while(i.hasNext()) {
-                                    String key = i.next();
-                                    Timestamp timestamp = (Timestamp)data.get(key);
-
-                                    if(timestamp.toDate().after(date1)) {
-                                        cnt++;
-                                    }
-                                }
-
-                                if (cnt == 0) {
-                                    continue;
-                                }
-                                OpenLocationCode openLocationCode = new OpenLocationCode(code);
-                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
-                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
-                                double intensity = 0.0;
-                                if (cnt >= Constants.INFECTION_SATURATION_CNT_MAX) {
-                                    intensity = 1.0;
-                                }
-                                else if (cnt <= Constants.INFECTION_SATURATION_CNT_MIN) {
-                                    intensity = 0.0;
-                                }
-                                else {
-                                    intensity = ((double) cnt - Constants.INFECTION_SATURATION_CNT_MIN)/Constants.INFECTION_SATURATION_CNT_MAX;
-                                }
-                                if (intensity <= 0.0) {
-                                    continue;
-                                }
-                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
-                                alertAreas.add(value);
-                            }
-
-                            addHeatMap(alertAreas);
-                        } else {
-                            Log.d("firebase-store", "Error getting documents: ", task.getException());
-                        }
-                    }
-                });
+        if (cnt == 0) {
+            return;
+        }
+        OpenLocationCode openLocationCode = new OpenLocationCode(code);
+        OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+        LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+        double intensity = 0.0;
+        if (cnt >= Constants.INFECTION_SATURATION_CNT_MAX) {
+            intensity = 1.0;
+        }
+        else if (cnt <= Constants.INFECTION_SATURATION_CNT_MIN) {
+            intensity = 0.0;
+        }
+        else {
+            intensity = ((double) cnt - Constants.INFECTION_SATURATION_CNT_MIN)/Constants.INFECTION_SATURATION_CNT_MAX;
+        }
+        if (intensity <= 0.0) {
+            return;
+        }
+        WeightedLatLng value = new WeightedLatLng(latlng, intensity);
+        alertAreas.add(value);
     }
 }

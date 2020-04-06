@@ -191,12 +191,5 @@ public class TracingIntentService extends IntentService {
                         Log.w("firebase-store", "Error writing document", e);
                     }
                 });
-
-        OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
-                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-        if (olc == null) {
-            return;
-        }
-        final String LocCode = olc.getCode().substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
     }
 }

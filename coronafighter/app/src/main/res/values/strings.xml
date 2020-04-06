@@ -7,4 +7,8 @@
     <string name="infection_report">Infection Report</string>
     <string name="infection_report_cancel">Report Cancel</string>
     <string name="refresh_alarm_areas">Refresh Alarm Areas</string>
+
+    <string name="infection_report_confirm_msg">Add new coronavirus infection area. is this good?</string>
+    <string name="infection_report_confirm_msg_by_tracing">Add new coronavirus infection area based on historical data. is this good?</string>
+
 </resources>
