@@ -77,13 +77,15 @@ public class TracingIntentService extends IntentService {
                 if (locationResult == null) {
                     return;
                 }
+
+                Location lastLocation = locationResult.getLastLocation();
+                if (lastLocation != null) {
+                    CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+                    app.setCurrentPosition(lastLocation);
+                }
+
                 for (Location location : locationResult.getLocations()) {
                     if (location != null) {
-                        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-
-                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                        app.setCurrentPosition(latLng);
-
                         if (mAuth.getCurrentUser() != null) {
                             traceUserInFireStore(location, mAuth.getCurrentUser());
                         }

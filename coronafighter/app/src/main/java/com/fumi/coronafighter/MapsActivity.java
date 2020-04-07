@@ -5,7 +5,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.lifecycle.ViewModelStoreOwner;
@@ -13,15 +12,10 @@ import androidx.lifecycle.ViewModelStoreOwner;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Application;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.location.LocationProvider;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -31,21 +25,12 @@ import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.IdpResponse;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -55,7 +40,6 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
@@ -100,15 +84,15 @@ public class MapsActivity extends AppCompatActivity
 
     private static final int RC_SIGN_IN = 123;
 
-    private LatLng currentLatLng;
-    private String currentLocCode;
-    //private Marker currentMarker;
+    private Location currentLocation;
 
     private ListenerRegistration mListenerStatus;
     private int new_coronavirus_infection_flag = 0;
     private ListenerRegistration mListenerAlert;
 
     final Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
+
+    private Date refreshAlarmAreasTime = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,11 +101,6 @@ public class MapsActivity extends AppCompatActivity
 
         //mToolbar = findViewById(R.id.toolbar);
         //setSupportActionBar(mToolbar);
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
 
         mAuth = FirebaseAuth.getInstance();
     }
@@ -203,10 +182,7 @@ public class MapsActivity extends AppCompatActivity
                 break;
 
             case R.id.refresh_alarm_areas:
-                ArrayList<String> locCodes = new ArrayList<String>();
-                locCodes.add(currentLocCode);
-
-                refreshAlertAreas(locCodes);
+                refreshAlertAreas(currentLocation);
                 break;
         }
         return false;
@@ -230,28 +206,15 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
             @Override
             public boolean onMyLocationButtonClick() {
-                if (currentLocCode != null) {
-                    ArrayList<String> locCodes = new ArrayList<String>();
-                    locCodes.add(currentLocCode);
-                    refreshAlertAreas(locCodes);
-                }
+                refreshAlertAreas(currentLocation);
                 return false;
             }
         });
+
         mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
             @Override
             public void onMyLocationClick(@NonNull Location location) {
-                OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
-                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                String locCode = olc.getCode();
-
-                if (currentLocCode == null || !currentLocCode.equals(locCode)) {
-                    ArrayList<String> locCodes = new ArrayList<String>();
-                    locCodes.add(locCode);
-                    refreshAlertAreas(locCodes);
-
-                    currentLocCode = locCode;
-                }
+                refreshAlertAreas(location);
             }
         });
 
@@ -262,16 +225,9 @@ public class MapsActivity extends AppCompatActivity
                         Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                 String locCode = olc.getCode();
 
-                if (currentLocCode == null ||
-                        !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
-                    ArrayList<String> locCodes = new ArrayList<String>();
-                    locCodes.add(locCode);
-                    refreshAlertAreas(locCodes);
-
-                    if (currentLocCode == null) {
-                        currentLocCode = locCode;
-                    }
-                }
+                ArrayList<String> locCodes = new ArrayList<String>();
+                locCodes.add(locCode);
+                refreshAlartAreas(locCodes);
             }
         });
 
@@ -396,31 +352,26 @@ public class MapsActivity extends AppCompatActivity
             return;
         }
 
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
         mFirebaseFirestore = FirebaseFirestore.getInstance();
 
         Application app = getApplication();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
         mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
         // Use the ViewModel
-        mViewModel.getSelected().observe(this, new Observer<LatLng>() {
+        mViewModel.getSelected().observe(this, new Observer<Location>() {
             @Override
-            public void onChanged(final LatLng latLng) {
-                //                if (currentMarker != null) {
-                //                    currentMarker.remove();
-                //                }
-                //                Marker marker = mMap.addMarker(new MarkerOptions().position(latLng).
-                //                        visible(true).
-                //                        title("Me"));
-                //Circle circle = mMap.addCircle(new CircleOptions()
-                //        .center(latLng)
-                //        .radius(20)
-                //        .strokeColor(Color.GREEN)
-                //        .fillColor(Color.YELLOW));
-
+            public void onChanged(final Location location) {
                 float zoom = mMap.getCameraPosition().zoom;
-                if (zoom < 10) {
-                    zoom = 15;
+                if (zoom < SettingInfos.map_min_zoom) {
+                    zoom = SettingInfos.map_default_zoom;
                 }
+
+                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
                 CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
                 // カメラの位置に移動
                 mMap.moveCamera(camera);
@@ -435,18 +386,11 @@ public class MapsActivity extends AppCompatActivity
                     registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
                 }
 
-                currentLatLng = latLng;
-                //                currentMarker = marker;
+                if (currentLocation == null || currentLocation.distanceTo(location) > SettingInfos.refresh_alarm_distance_min_meter) {
+                    refreshAlertAreas(location);
 
-                if (currentLocCode == null ||
-                        !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
-
-                    ArrayList<String> locCodes = new ArrayList<String>();
-                    locCodes.add(locCode);
-
-                    refreshAlertAreas(locCodes);
+                    currentLocation = location;
                 }
-                currentLocCode = locCode;
             }
         });
 
@@ -469,23 +413,23 @@ public class MapsActivity extends AppCompatActivity
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        if(currentLatLng != null) {
-                            OpenLocationCode olc = new OpenLocationCode(currentLatLng.latitude, currentLatLng.longitude,
-                                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                            String locCode = olc.getCode();
+                        if (e != null) {
+                            return;
+                        }
+                        if(currentLocation != null) {
+                            refreshAlertAreas(currentLocation);
+                        }
 
+                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                            SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
+                            SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
 
-                            if (currentLocCode == null ||
-                                    !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
-                                ArrayList<String> locCodes = new ArrayList<String>();
-                                locCodes.add(locCode);
+                            SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
+                            SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
 
-                                refreshAlertAreas(locCodes);
+                            SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
 
-                                if (currentLocCode == null ) {
-                                    currentLocCode = locCode;
-                                }
-                            }
+                            SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
                         }
                     }
                 });
@@ -581,21 +525,8 @@ public class MapsActivity extends AppCompatActivity
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        if(currentLatLng != null) {
-                            OpenLocationCode olc = new OpenLocationCode(currentLatLng.latitude, currentLatLng.longitude,
-                                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                            String locCode = olc.getCode();
-
-                            if (currentLocCode == null ||
-                                    !currentLocCode.startsWith(locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE))) {
-                                ArrayList<String> locCodes = new ArrayList<String>();
-                                locCodes.add(locCode);
-                                refreshAlertAreas(locCodes);
-
-                                if (currentLocCode == null) {
-                                    currentLocCode = locCode;
-                                }
-                            }
+                        if(currentLocation != null) {
+                             refreshAlertAreas(currentLocation);
                         }
                     }
                 });
@@ -739,8 +670,27 @@ public class MapsActivity extends AppCompatActivity
         mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
     }
 
-    private void refreshAlertAreas(final ArrayList<String> locCodes) {
-        if (locCodes == null || locCodes.size() == 0) {
+    private void refreshAlertAreas(Location location) {
+        if (location == null) {
+            return;
+        }
+
+        ArrayList<String> locCodes = new ArrayList<String>();
+
+        OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+        String locCode = olc.getCode();
+        locCodes.add(locCode);
+
+        refreshAlartAreas(locCodes);
+    }
+
+    private void refreshAlartAreas(ArrayList<String> locCodes) {
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
+        Date now = Calendar.getInstance().getTime();
+
+        if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(now)) {
             return;
         }
 

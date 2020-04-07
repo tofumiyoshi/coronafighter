@@ -2,6 +2,7 @@ package com.fumi.coronafighter;
 
 import android.app.Application;
 import android.content.Intent;
+import android.location.Location;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -25,7 +26,6 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
     private CurrentPositionViewModel mModel;
 
     private ViewModelStore mViewModelStore;
-    private LatLng currentPosition;
     private MainHandler mMainHandler;
 
     private Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
@@ -37,7 +37,7 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
 
         @Override
         public void handleMessage(Message msg) {
-            LatLng pos = (LatLng)msg.obj;
+            Location pos = (Location) msg.obj;
             mModel.select(pos);
         }
     }
@@ -53,7 +53,9 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
 
         mMainHandler = new MainHandler(getMainLooper());
 
-        TracingIntentService.startActionTracing(getApplicationContext(), 180, 15);
+        TracingIntentService.startActionTracing(getApplicationContext(),
+                SettingInfos.tracing_time_interval_second,
+                SettingInfos.tracing_min_distance_meter);
     }
 
     @Override
@@ -62,18 +64,12 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
         Log.v(TAG,"--- onTerminate() in ---");
     }
 
-    public void setCurrentPosition(LatLng pos){
+    public void setCurrentPosition(Location pos){
         if (pos != null) {
-            currentPosition = pos;
-
             Message msg = mMainHandler.obtainMessage();
             msg.obj = pos;
             mMainHandler.sendMessage(msg);
         }
-    }
-
-    public LatLng getCurrentPosition(){
-        return currentPosition;
     }
 
     @NonNull
