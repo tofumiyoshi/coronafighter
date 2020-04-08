@@ -28,6 +28,7 @@ import com.firebase.ui.auth.IdpResponse;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.RequestConfiguration;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -113,6 +114,9 @@ public class MapsActivity extends AppCompatActivity
         //                Log.d(TAG, "MobileAds's InitializationStatus is " + status.toString());
         //            }
         //        });
+
+        new RequestConfiguration.Builder()
+                .setTestDeviceIds(Arrays.asList("0864DBC30BACA193A583B05DF11BAE25"));
 
         mAdView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
