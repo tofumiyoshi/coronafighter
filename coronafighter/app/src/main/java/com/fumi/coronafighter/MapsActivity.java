@@ -106,6 +106,13 @@ public class MapsActivity extends AppCompatActivity
         setContentView(R.layout.activity_maps);
 
         MobileAds.initialize(getApplicationContext(), getString(R.string.adsmod_app_id));
+        //        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+        //            @Override
+        //            public void onInitializationComplete(InitializationStatus initializationStatus) {
+        //                Map<String, AdapterStatus> status = initializationStatus.getAdapterStatusMap();
+        //                Log.d(TAG, "MobileAds's InitializationStatus is " + status.toString());
+        //            }
+        //        });
 
         mAdView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
