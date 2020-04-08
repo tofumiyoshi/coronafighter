@@ -15,14 +15,12 @@ import android.app.Application;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.AdapterView;
 import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
@@ -72,6 +70,7 @@ import java.util.Map;
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
         ActivityCompat.OnRequestPermissionsResultCallback {
+    private static final String TAG = "MapsActivity";
 
     private GoogleMap mMap;
     private FirebaseAuth mAuth;
@@ -107,6 +106,7 @@ public class MapsActivity extends AppCompatActivity
         setContentView(R.layout.activity_maps);
 
         MobileAds.initialize(getApplicationContext(), getString(R.string.adsmod_app_id));
+
         mAdView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
         mAdView.loadAd(adRequest);
@@ -462,13 +462,13 @@ public class MapsActivity extends AppCompatActivity
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                        Log.w(TAG, "Error writing document", e);
                     }
                 });
 
@@ -495,11 +495,10 @@ public class MapsActivity extends AppCompatActivity
                                     OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
                                             Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                                     String locCode = olc.getCode();
-                                    //Log.d("firebase-store", "locCode = " + locCode);
                                     registNewCoronavirusInfo(currentUser, locCode, timestamp);
                                 }
                             } else {
-                                Log.d("firebase-store", "get failed with ", task.getException());
+                                Log.d(TAG, "get failed with ", task.getException());
                             }
                         }
                     });
@@ -522,7 +521,7 @@ public class MapsActivity extends AppCompatActivity
                                     removeNewCoronavirusInfo(currentUser, docId);
                                 }
                             } else {
-                                Log.d("firebase-store", "get failed with ", task.getException());
+                                Log.d(TAG, "get failed with ", task.getException());
                             }
                         }
                     });
@@ -551,13 +550,13 @@ public class MapsActivity extends AppCompatActivity
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                        Log.w(TAG, "Error writing document", e);
                     }
                 });
     }
@@ -580,13 +579,13 @@ public class MapsActivity extends AppCompatActivity
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                        Log.w(TAG, "Error writing document", e);
                     }
                 });
 
@@ -598,13 +597,13 @@ public class MapsActivity extends AppCompatActivity
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                        Log.w(TAG, "Error writing document", e);
                     }
                 });
     }
@@ -629,7 +628,7 @@ public class MapsActivity extends AppCompatActivity
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
                             for (QueryDocumentSnapshot document : task.getResult()) {
-                                Log.d("firebase-store", document.getId() + " => " + document.getData());
+                                Log.d(TAG, document.getId() + " => " + document.getData());
                                 String locCode2 = document.getId();
 
                                 Map<String, Object> info = new HashMap<>();
@@ -643,19 +642,19 @@ public class MapsActivity extends AppCompatActivity
                                         .addOnSuccessListener(new OnSuccessListener<Void>() {
                                             @Override
                                             public void onSuccess(Void aVoid) {
-                                                Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                                                Log.d(TAG, "DocumentSnapshot successfully written!");
                                             }
                                         })
                                         .addOnFailureListener(new OnFailureListener() {
                                             @Override
                                             public void onFailure(@NonNull Exception e) {
-                                                Log.w("firebase-store", "Error writing document", e);
+                                                Log.w(TAG, "Error writing document", e);
                                             }
                                         });
 
                             }
                         } else {
-                            Log.d("firebase-store", "Error getting documents: ", task.getException());
+                            Log.d(TAG, "Error getting documents: ", task.getException());
                         }
                     }
                 });
@@ -741,7 +740,7 @@ public class MapsActivity extends AppCompatActivity
                                                     CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
 
                                                     for (QueryDocumentSnapshot document : task.getResult()) {
-                                                        Log.d("firebase-store", document.getId() + " => " + document.getData());
+                                                        Log.d(TAG, document.getId() + " => " + document.getData());
 
                                                         String locCode2 = document.getId();
                                                         String code = locCode1 + locCode2;
@@ -753,14 +752,14 @@ public class MapsActivity extends AppCompatActivity
                                                     addHeatMap(mAlertAreas);
 
                                                 } else {
-                                                    Log.d("firebase-store", "Error getting documents: ", task.getException());
+                                                    Log.d(TAG, "Error getting documents: ", task.getException());
                                                 }
                                             }
                                         });
                             }
                         }
                         else {
-                            Log.d("firebase-store", "Error getting documents: ", task.getException());
+                            Log.d(TAG, "Error getting documents: ", task.getException());
                         }
                     }
                 });
