@@ -106,7 +106,7 @@ public class MapsActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        MobileAds.initialize(getApplicationContext(), getString(R.string.banner_ad_app_id));
+        MobileAds.initialize(getApplicationContext(), getString(R.string.adsmod_app_id));
         mAdView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
         mAdView.loadAd(adRequest);
