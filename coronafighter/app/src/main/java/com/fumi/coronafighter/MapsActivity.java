@@ -25,10 +25,14 @@ import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.IdpResponse;
+import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.RequestConfiguration;
+import com.google.android.gms.ads.initialization.AdapterStatus;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -56,6 +60,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.maps.android.heatmaps.WeightedLatLng;
+import com.google.maps.android.projection.SphericalMercatorProjection;
 import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.ArrayList;
@@ -106,19 +111,61 @@ public class MapsActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        MobileAds.initialize(getApplicationContext(), getString(R.string.adsmod_app_id));
-        //        MobileAds.initialize(this, new OnInitializationCompleteListener() {
-        //            @Override
-        //            public void onInitializationComplete(InitializationStatus initializationStatus) {
-        //                Map<String, AdapterStatus> status = initializationStatus.getAdapterStatusMap();
-        //                Log.d(TAG, "MobileAds's InitializationStatus is " + status.toString());
-        //            }
-        //        });
+        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+            @Override
+            public void onInitializationComplete(InitializationStatus initializationStatus) {
+                Log.i(TAG, "MobileAds initialize completed.");
 
-        new RequestConfiguration.Builder()
-                .setTestDeviceIds(Arrays.asList("0864DBC30BACA193A583B05DF11BAE25"));
+                Iterator i = initializationStatus.getAdapterStatusMap().keySet().iterator();
+                while (i.hasNext()){
+                    String key = (String)i.next();
+                    AdapterStatus status = initializationStatus.getAdapterStatusMap().get(key);
+
+                    Log.i(TAG, key + "=" + status.getInitializationState().name());
+
+                    if (key.equals("com.google.android.gms.ads.MobileAds")) {
+                        String msg = "com.google.android.gms.ads.MobileAds: " + status.getInitializationState().name();
+                        Toast.makeText(MapsActivity.this, msg, Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        });
+
 
         mAdView = findViewById(R.id.adView);
+        mAdView.setAdListener(new AdListener(){
+            @Override
+            public void onAdLoaded() {
+                // Code to be executed when an ad finishes loading.
+                Toast.makeText(MapsActivity.this, "AdLoaded.", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onAdFailedToLoad(int errorCode) {
+                // Code to be executed when an ad request fails.
+                //Toast.makeText(MapsActivity.this, "AdFailedToLoad. erroeCode =" + Integer.toString(errorCode), Toast.LENGTH_LONG).show();
+
+                if (errorCode == AdRequest.ERROR_CODE_INTERNAL_ERROR) {
+                    Toast.makeText(MapsActivity.this, "内部エラー", Toast.LENGTH_LONG).show();
+                }
+                else if (errorCode == AdRequest.ERROR_CODE_INVALID_REQUEST) {
+                    Toast.makeText(MapsActivity.this, "広告リクエスト無効", Toast.LENGTH_LONG).show();
+                }
+                else if (errorCode == AdRequest.ERROR_CODE_NETWORK_ERROR) {
+                    Toast.makeText(MapsActivity.this, "ネットワーク接続エラー", Toast.LENGTH_LONG).show();
+                }
+                else if (errorCode == AdRequest.ERROR_CODE_NO_FILL) {
+                    Toast.makeText(MapsActivity.this, "広告枠不足", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onAdClosed() {
+                // Code to be executed when the user is about to return
+                // to the app after tapping on an ad.
+                Toast.makeText(MapsActivity.this, "AdClosed.", Toast.LENGTH_LONG).show();
+            }
+        });
         AdRequest adRequest = new AdRequest.Builder().build();
         mAdView.loadAd(adRequest);
 
@@ -257,23 +304,44 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(final LatLng latLng) {
-                new AlertDialog.Builder(MapsActivity.this)
-                        .setTitle(R.string.infection_report)
-                        .setMessage(R.string.infection_report_confirm_msg)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
-                                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                                String locCode = olc.getCode();
+                final List<String> locCodes = findExistInAlertAreasCode(latLng);
+                if (locCodes == null || locCodes.size() == 0) {
+                    new AlertDialog.Builder(MapsActivity.this)
+                            .setTitle(R.string.infection_report)
+                            .setMessage(R.string.infection_report_confirm_msg)
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                                    String locCode = olc.getCode();
 
-                                Date date1 = Calendar.getInstance().getTime();
-                                Timestamp timestamp = new Timestamp(date1);
-                                registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
-                            }
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
+                                    Date date1 = Calendar.getInstance().getTime();
+                                    Timestamp timestamp = new Timestamp(date1);
+                                    registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+                                }
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                }
+                else {
+                    new AlertDialog.Builder(MapsActivity.this)
+                            .setTitle(R.string.infection_area_delete)
+                            .setMessage(R.string.infection_area_delete_msg)
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    Date date1 = Calendar.getInstance().getTime();
+                                    Timestamp timestamp = new Timestamp(date1);
+
+                                    for(String locCode : locCodes) {
+                                        removeNewCoronavirusInfo(mAuth.getCurrentUser(), locCode);
+                                    }
+                                }
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                }
             }
         });
     }
@@ -456,6 +524,10 @@ public class MapsActivity extends AppCompatActivity
                         }
                     }
                 });
+
+        TracingIntentService.startActionTracing(getApplicationContext(),
+                SettingInfos.tracing_time_interval_second,
+                SettingInfos.tracing_min_distance_meter);
     }
 
     private void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {
@@ -628,9 +700,14 @@ public class MapsActivity extends AppCompatActivity
         Date date1 = cal.getTime();
         Timestamp timeStart = new Timestamp(date1);
 
+        String locCode1 = locCode;
+        if (locCode.length() > 6) {
+            locCode1 = locCode.substring(0, 6);
+        }
+
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection("corona-infos")
-                .document(locCode)
+                .document(locCode1)
                 .collection("sub-areas")
                 .whereGreaterThan(field_key, timeStart)
                 .get()
@@ -642,11 +719,17 @@ public class MapsActivity extends AppCompatActivity
                                 Log.d(TAG, document.getId() + " => " + document.getData());
                                 String locCode2 = document.getId();
 
+                                if (locCode.length() > 6) {
+                                    if (!locCode2.equals(locCode.substring(6))) {
+                                        continue;
+                                    }
+                                }
+
                                 Map<String, Object> info = new HashMap<>();
                                 info.put(field_key, FieldValue.delete());
 
                                 mFirebaseFirestore.collection("corona-infos")
-                                        .document(locCode)
+                                        .document(locCode.substring(0, 6))
                                         .collection("sub-areas")
                                         .document(locCode2)
                                         .update(info)
@@ -816,5 +899,31 @@ public class MapsActivity extends AppCompatActivity
         }
         WeightedLatLng value = new WeightedLatLng(latlng, intensity);
         alertAreas.add(value);
+    }
+
+    public List<String> findExistInAlertAreasCode(final LatLng latLng) {
+        if  (mAlertAreas == null || mAlertAreas.size() == 0) {
+            return null;
+        }
+
+        List<String> res = new ArrayList<String>();
+
+        OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+        String code = olc.getCode();
+
+        SphericalMercatorProjection sProjection = new SphericalMercatorProjection(1.0D);
+        for (WeightedLatLng item : mAlertAreas) {
+            LatLng latLng2 = sProjection.toLatLng(item.getPoint());
+            OpenLocationCode olc2 = new OpenLocationCode(latLng2.latitude, latLng2.longitude,
+                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+            String code2 = olc2.getCode();
+
+            if (code2.startsWith(code.substring(0, 8))) {
+                res.add(code2);
+            }
+        }
+
+        return res;
     }
 }

@@ -1,13 +1,15 @@
 <resources>
-    <string name="app_name">coronashape</string>
-    <string name="title_activity_maps">Shape of Corona</string>
+    <string name="app_name" translatable="false">coronamutualassistance</string>
+    <string name="title_activity_maps">CoronaMutualAssistance</string>
     <string name="logout">Logout</string>
     <string name="trace_position_start">Trace Position Start</string>
     <string name="trace_position_stop">Trace Position Stop</string>
     <string name="infection_report">Infection Report</string>
     <string name="infection_report_cancel">Report Cancel</string>
     <string name="refresh_alarm_areas">Refresh Alarm Areas</string>
+    <string name="infection_area_delete">Report Delete</string>
 
     <string name="infection_report_confirm_msg">Add new coronavirus infection area. is this good?</string>
     <string name="infection_report_confirm_msg_by_tracing">Add new coronavirus infection area based on historical data. is this good?</string>
+    <string name="infection_area_delete_msg">Delete coronavirus infection area. is this good?</string>
 </resources>

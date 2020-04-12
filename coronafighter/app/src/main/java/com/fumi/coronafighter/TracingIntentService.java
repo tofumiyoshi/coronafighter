@@ -33,7 +33,6 @@ import java.util.Map;
  * An {@link IntentService} subclass for handling asynchronous task requests in
  * a service on a separate handler thread.
  * <p>
- * TODO: Customize class - update intent actions, extra parameters and static
  * helper methods.
  */
 public class TracingIntentService extends IntentService {
@@ -69,7 +68,6 @@ public class TracingIntentService extends IntentService {
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         locationRequest.setInterval(180*1000);
-        //locationRequest.setFastestInterval(60*1000);
 
         locationCallback = new LocationCallback() {
             @Override

@@ -1,15 +1,15 @@
 <resources>
-    <string name="app_name">coronashape</string>
-    <string name="title_activity_maps">コロナの姿</string>
+    <string name="title_activity_maps">コロナ友助</string>
 
     <string name="logout">ログアウト</string>
     <string name="trace_position_start">追跡開始</string>
     <string name="trace_position_stop">追跡停止</string>
-    <string name="infection_report">感染通報</string>
-    <string name="infection_report_cancel">通報取消し</string>
-    <string name="refresh_alarm_areas">警報エリア更新</string>
+    <string name="infection_report">感染報告</string>
+    <string name="infection_report_cancel">報告取消</string>
+    <string name="refresh_alarm_areas">表示更新</string>
+    <string name="infection_area_delete">報告削除</string>
 
     <string name="infection_report_confirm_msg">新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
     <string name="infection_report_confirm_msg_by_tracing">履歴データをもとに新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
-
+    <string name="infection_area_delete_msg">新型コロナウイルス感染エリアを削除します。よろしいでしょうか？</string>
 </resources>

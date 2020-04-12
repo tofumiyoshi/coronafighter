@@ -52,10 +52,6 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
                 CoronaFighterApplication.this, factory).get(CurrentPositionViewModel.class);
 
         mMainHandler = new MainHandler(getMainLooper());
-
-        TracingIntentService.startActionTracing(getApplicationContext(),
-                SettingInfos.tracing_time_interval_second,
-                SettingInfos.tracing_min_distance_meter);
     }
 
     @Override
