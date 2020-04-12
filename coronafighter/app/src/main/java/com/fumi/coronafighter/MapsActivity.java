@@ -137,7 +137,7 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onAdLoaded() {
                 // Code to be executed when an ad finishes loading.
-                Toast.makeText(MapsActivity.this, "AdLoaded.", Toast.LENGTH_LONG).show();
+                //Toast.makeText(MapsActivity.this, "AdLoaded.", Toast.LENGTH_LONG).show();
             }
 
             @Override
@@ -173,6 +173,8 @@ public class MapsActivity extends AppCompatActivity
         //setSupportActionBar(mToolbar);
 
         mAuth = FirebaseAuth.getInstance();
+
+        initialize();
     }
 
     @Override
@@ -193,8 +195,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-
-        initialize();
     }
 
     @Override
