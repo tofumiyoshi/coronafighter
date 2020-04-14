@@ -76,17 +76,13 @@ public class TracingIntentService extends IntentService {
                     return;
                 }
 
-                Location lastLocation = locationResult.getLastLocation();
-                if (lastLocation != null) {
-                    CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                    app.setCurrentPosition(lastLocation);
-                }
-
+                CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
                 for (Location location : locationResult.getLocations()) {
                     if (location != null) {
                         if (mAuth.getCurrentUser() != null) {
                             traceUserInFireStore(location, mAuth.getCurrentUser());
                         }
+                        app.setCurrentPosition(location);
                     }
                 }
             }
