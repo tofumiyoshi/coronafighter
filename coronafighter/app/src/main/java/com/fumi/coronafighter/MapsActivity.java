@@ -215,6 +215,9 @@ public class MapsActivity extends AppCompatActivity
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.logout:
+                Intent intent = new Intent(getApplication(), LocationService.class);
+                stopService(intent);
+
                 signOut();
                 break;
             case R.id.infection_report:
