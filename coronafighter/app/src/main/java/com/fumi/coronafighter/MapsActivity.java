@@ -225,14 +225,6 @@ public class MapsActivity extends AppCompatActivity
             case R.id.logout:
                 signOut();
                 break;
-            /*
-            case R.id.trace_position_start:
-                TracingIntentService.startActionTracing(getBaseContext(), 180, 15);
-                break;
-            case R.id.trace_position_stop:
-                stopService(new Intent(getBaseContext(), TracingIntentService.class));
-                break;
-             */
             case R.id.infection_report:
                 new AlertDialog.Builder(MapsActivity.this)
                         .setTitle(R.string.infection_report)
@@ -525,9 +517,8 @@ public class MapsActivity extends AppCompatActivity
                     }
                 });
 
-        TracingIntentService.startActionTracing(getApplicationContext(),
-                SettingInfos.tracing_time_interval_second,
-                SettingInfos.tracing_min_distance_meter);
+        Intent intent = new Intent(getApplication(), LocationService.class);
+        startForegroundService(intent);
     }
 
     private void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {

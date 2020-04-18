@@ -1,73 +1,79 @@
 package com.fumi.coronafighter;
 
-import android.app.IntentService;
-import android.content.Intent;
+import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.location.LocationProvider;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.HandlerThread;
+import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p>
- * helper methods.
- */
-public class TracingIntentService extends IntentService {
-    private static final String ACTION_START = "com.fumi.coronafighter.action.START";
-    private static final String ACTION_STOP = "com.fumi.coronafighter.action.STOP";
+public class LocationService extends Service {
 
-    private static final String PARAM_TIME_INERVAL = "com.fumi.coronafighter.param.TIME_INTERVAL";
-    private static final String PARAM_MIN_DISTANCE = "com.fumi.coronafighter.param.MIN_DISTANCE";
-
-    private FusedLocationProviderClient mFusedLocationClient;
-    private LocationRequest locationRequest;
-    private LocationCallback locationCallback;
+    private LocationManager locationManager;
+    private Context context;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore mFirebaseFirestore;
 
+    private FusedLocationProviderClient mFusedLocationClient;
+    private LocationRequest locationRequest;
+    private LocationCallback locationCallback;
     private volatile Looper mTracingLooper;
-
-    public TracingIntentService() {
-        super("TracingIntentService");
-    }
 
     @Override
     public void onCreate() {
+        super.onCreate();
+
+        context = getApplicationContext();
+
         mAuth = FirebaseAuth.getInstance();
         mFirebaseFirestore = FirebaseFirestore.getInstance();
 
-        HandlerThread thread = new HandlerThread(TracingIntentService.class.getName());
+        HandlerThread thread = new HandlerThread(LocationService.class.getName());
         thread.start();
         mTracingLooper = thread.getLooper();
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(180*1000);
+        locationRequest.setInterval(SettingInfos.tracing_time_interval_second*1000);
+        locationRequest.setSmallestDisplacement(SettingInfos.tracing_min_distance_meter);
 
         locationCallback = new LocationCallback() {
             @Override
@@ -87,78 +93,81 @@ public class TracingIntentService extends IntentService {
                 }
             }
         };
+    }
 
-        super.onCreate();
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        int requestCode = 0;
+        String channelId = "default";
+        String title = context.getString(R.string.title_activity_maps);
+
+        PendingIntent pendingIntent =
+                PendingIntent.getActivity(context, requestCode,
+                        intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // ForegroundにするためNotificationが必要、Contextを設定
+        NotificationManager notificationManager =
+                (NotificationManager)context.
+                        getSystemService(Context.NOTIFICATION_SERVICE);
+
+        // Notification　Channel 設定
+        NotificationChannel channel = new NotificationChannel(
+                channelId, title , NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("Silent Notification");
+        // 通知音を消さないと毎回通知音が出てしまう
+        // この辺りの設定はcleanにしてから変更
+        channel.setSound(null,null);
+        // 通知ランプを消す
+        channel.enableLights(false);
+        channel.setLightColor(Color.BLUE);
+        // 通知バイブレーション無し
+        channel.enableVibration(false);
+
+        if(notificationManager != null) {
+            notificationManager.createNotificationChannel(channel);
+            Notification notification = new Notification.Builder(context, channelId)
+                    .setContentTitle(title)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentText("GPS")
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent)
+                    .setWhen(System.currentTimeMillis())
+                    .build();
+
+            // startForeground
+            startForeground(1, notification);
+        }
+
+        startGPS();
+
+        return START_NOT_STICKY;
+    }
+
+    protected void startGPS() {
+        StringBuilder strBuf = new StringBuilder();
+        strBuf.append("startGPS\n");
+
+        locationRequest.setInterval(SettingInfos.tracing_time_interval_second * 1000);
+        locationRequest.setSmallestDisplacement(SettingInfos.tracing_min_distance_meter);
+
+        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mTracingLooper);
+    }
+
+    private void stopGPS(){
+        mFusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-    }
 
-    /**
-     * Starts this service to perform action Foo with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    public static void startActionTracing(Context context, int timeInterval, int minDistance) {
-        Intent intent = new Intent(context, TracingIntentService.class);
-        intent.setAction(ACTION_START);
-        intent.putExtra(PARAM_TIME_INERVAL, timeInterval);
-        intent.putExtra(PARAM_MIN_DISTANCE, minDistance);
-
-        context.startService(intent);
-    }
-
-    /**
-     * Starts this service to perform action Foo with the given parameters. If
-     * the service is already performing a task this action will be queued.
-     *
-     * @see IntentService
-     */
-    public static void stopActionTracing(Context context, int timeInterval, int minDistance) {
-        Intent intent = new Intent(context, TracingIntentService.class);
-        intent.setAction(ACTION_STOP);
-
-        context.startService(intent);
+        stopGPS();
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
-        if (intent != null) {
-            final String action = intent.getAction();
-            if (ACTION_START.equals(action)) {
-                int timeInterval = intent.getIntExtra(PARAM_TIME_INERVAL, 180);
-                int minDistance = intent.getIntExtra(PARAM_MIN_DISTANCE, 15);
-
-                handleActionStart(timeInterval, minDistance);
-            }
-            else if (ACTION_STOP.equals(action)) {
-                handleActionStop();
-            }
-        }
-    }
-
-    /**
-     * Handle action Start in the provided background thread with the provided
-     * parameters.
-     */
-    private void handleActionStart(int timeInterval, int minDistance) {
-        //locationRequest.setFastestInterval(timeInterval * 1000);
-        locationRequest.setInterval(timeInterval * 1000);
-        locationRequest.setSmallestDisplacement(minDistance);
-
-        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mTracingLooper);
-        //mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, getMainLooper());
-    }
-
-    /**
-     * Handle action Stop in the provided background thread with the provided
-     * parameters.
-     */
-    private void handleActionStop() {
-        mFusedLocationClient.removeLocationUpdates(locationCallback);
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     private void traceUserInFireStore(Location location, FirebaseUser currentUser) {
