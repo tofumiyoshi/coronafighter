@@ -129,7 +129,7 @@ public class LocationService extends Service {
             Notification notification = new Notification.Builder(context, channelId)
                     .setContentTitle(title)
                     .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentText("GPS")
+                    .setContentText("位置情報追跡")
                     .setAutoCancel(true)
                     .setContentIntent(pendingIntent)
                     .setWhen(System.currentTimeMillis())
@@ -156,6 +156,8 @@ public class LocationService extends Service {
 
     private void stopGPS(){
         mFusedLocationClient.removeLocationUpdates(locationCallback);
+
+        stopForeground(true);
     }
 
     @Override

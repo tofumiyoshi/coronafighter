@@ -442,6 +442,10 @@ public class MapsActivity extends AppCompatActivity
         mViewModel.getSelected().observe(this, new Observer<Location>() {
             @Override
             public void onChanged(final Location location) {
+                if (mMap == null) {
+                    return;
+                }
+
                 float zoom = mMap.getCameraPosition().zoom;
                 if (zoom < SettingInfos.map_min_zoom) {
                     zoom = SettingInfos.map_default_zoom;
