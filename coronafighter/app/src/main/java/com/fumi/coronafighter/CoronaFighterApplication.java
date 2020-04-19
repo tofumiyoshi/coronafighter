@@ -23,7 +23,11 @@ import java.util.List;
 public class CoronaFighterApplication extends Application implements ViewModelStoreOwner {
     private final String TAG = CoronaFighterApplication.class.getSimpleName();
 
+    private final static int MSG_UPD_CURRENT_LOCATION = 1;
+    private final static int MSG_UPD_ALARM_AREAS = 2;
+
     private CurrentPositionViewModel mModel;
+    private AlarmAreasViewModel mAlarmAreasViewModel;
 
     private ViewModelStore mViewModelStore;
     private MainHandler mMainHandler;
@@ -37,8 +41,16 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
 
         @Override
         public void handleMessage(Message msg) {
-            Location pos = (Location) msg.obj;
-            mModel.select(pos);
+            switch (msg.what) {
+                case MSG_UPD_CURRENT_LOCATION:
+                    Location pos = (Location) msg.obj;
+                    mModel.select(pos);
+                    break;
+                case MSG_UPD_ALARM_AREAS:
+                    ArrayList<AlarmInfo> infos = (ArrayList<AlarmInfo>) msg.obj;
+                    mAlarmAreasViewModel.select(infos);
+                    break;
+            }
         }
     }
 
@@ -50,6 +62,9 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
         mModel = new ViewModelProvider(
                 CoronaFighterApplication.this, factory).get(CurrentPositionViewModel.class);
+
+        mAlarmAreasViewModel = new ViewModelProvider(
+                CoronaFighterApplication.this, factory).get(AlarmAreasViewModel.class);
 
         mMainHandler = new MainHandler(getMainLooper());
     }
@@ -63,7 +78,17 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
     public void setCurrentPosition(Location pos){
         if (pos != null) {
             Message msg = mMainHandler.obtainMessage();
+            msg.what = MSG_UPD_CURRENT_LOCATION;
             msg.obj = pos;
+            mMainHandler.sendMessage(msg);
+        }
+    }
+
+    public void setAlarmAreas(ArrayList<AlarmInfo> infos){
+        if (infos != null) {
+            Message msg = mMainHandler.obtainMessage();
+            msg.what = MSG_UPD_ALARM_AREAS;
+            msg.obj = infos;
             mMainHandler.sendMessage(msg);
         }
     }

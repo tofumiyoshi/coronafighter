@@ -93,6 +93,8 @@ public class FireStore {
                             SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
 
                             SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
+
+                            SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
                         }
                     }
                 });
@@ -236,7 +238,7 @@ public class FireStore {
         // 警報基準
         // 日時：　過去７日間
         Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_YEAR, -7);
+        cal.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
         final Date date1 = cal.getTime();
         Timestamp timestamp = new Timestamp(date1);
 

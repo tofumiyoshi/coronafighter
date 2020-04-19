@@ -15,6 +15,7 @@ import android.app.Application;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -39,12 +40,15 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.maps.android.heatmaps.Gradient;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.openlocationcode.OpenLocationCode;
 
@@ -63,6 +67,7 @@ public class MapsActivity extends AppCompatActivity
 
     private GoogleMap mMap;
     private CurrentPositionViewModel mViewModel;
+    private AlarmAreasViewModel mAlarmAreasViewModel;
     private Toolbar mToolbar;
 
     public FirebaseAuth mAuth;
@@ -200,6 +205,9 @@ public class MapsActivity extends AppCompatActivity
                 Intent intent = new Intent(getApplication(), LocationService.class);
                 stopService(intent);
 
+                Intent intent2 = new Intent(getApplication(), AlarmService.class);
+                stopService(intent2);
+
                 signOut();
                 break;
             case R.id.infection_report:
@@ -230,11 +238,6 @@ public class MapsActivity extends AppCompatActivity
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -260,13 +263,15 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
-                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                String locCode = olc.getCode();
+                //OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                //        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                //String locCode = olc.getCode();
+                //
+                //ArrayList<String> locCodes = new ArrayList<String>();
+                //locCodes.add(locCode);
+                //FireStore.refreshAlartAreas(locCodes);
 
-                ArrayList<String> locCodes = new ArrayList<String>();
-                locCodes.add(locCode);
-                FireStore.refreshAlartAreas(locCodes);
+                setHeatMap(FireStore.mAlertAreas);
             }
         });
 
@@ -419,6 +424,19 @@ public class MapsActivity extends AppCompatActivity
 
         Application app = getApplication();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
+
+        mAlarmAreasViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(AlarmAreasViewModel.class);
+        mAlarmAreasViewModel.getSelected().observe(this, new Observer<ArrayList<AlarmInfo>>() {
+                    @Override
+                    public void onChanged(final ArrayList<AlarmInfo> alarmInfos) {
+                        if (mMap == null) {
+                            return;
+                        }
+
+                        setAlarmAreas(alarmInfos);
+                    }
+                });
+
         mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
         // Use the ViewModel
         mViewModel.getSelected().observe(this, new Observer<Location>() {
@@ -461,6 +479,9 @@ public class MapsActivity extends AppCompatActivity
 
         Intent intent = new Intent(getApplication(), LocationService.class);
         startForegroundService(intent);
+
+        Intent intent2 = new Intent(getApplication(), AlarmService.class);
+        startForegroundService(intent2);
     }
 
     private HeatmapTileProvider mProvider;
@@ -476,11 +497,31 @@ public class MapsActivity extends AppCompatActivity
         }
 
         // Create a heat map tile provider, passing it the latlngs of the police stations.
+        //final int[] DEFAULT_GRADIENT_COLORS = new int[]{
+        //        Color.rgb(0, 0, 0),
+        //        Color.rgb(255, 0, 0)};
+        //final float[] DEFAULT_GRADIENT_START_POINTS = new float[]{0.2F, 1.0F};
+        //Gradient g = new Gradient(DEFAULT_GRADIENT_COLORS, DEFAULT_GRADIENT_START_POINTS);
+
         mProvider = new HeatmapTileProvider.Builder()
                 .weightedData(list)
                 .build();
 
         // Add a tile overlay to the map, using the heat map tile provider.
         mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+    }
+
+    ArrayList<Marker> marks = new ArrayList<Marker>();
+    public void setAlarmAreas(List<AlarmInfo> alarmAreas) {
+        for (Marker mark : marks) {
+            mark.remove();
+        }
+
+        for (AlarmInfo alarmArea : alarmAreas) {
+            LatLng location = new LatLng(alarmArea.getLatitude(), alarmArea.getLongitude());
+            Marker mark = mMap.addMarker(new MarkerOptions().position(location).title("感染地"));
+
+            marks.add(mark);
+        }
     }
 }

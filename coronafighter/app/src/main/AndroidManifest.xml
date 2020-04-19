@@ -20,6 +20,11 @@
             android:enabled="true"
             android:exported="true"></service>
 
+        <service
+            android:name=".AlarmService"
+            android:enabled="true"
+            android:exported="true"></service>
+
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />

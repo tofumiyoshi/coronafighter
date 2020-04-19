@@ -11,4 +11,6 @@ public class SettingInfos {
     public static int refresh_alarm_distance_min_meter = 10;
 
     public static int refresh_alarm_areas_min_interval_second = 30;
+
+    public static int alarm_limit = 7;
 }
