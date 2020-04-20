@@ -78,7 +78,6 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mAuth = FirebaseAuth.getInstance();
         initialize();
     }
 
@@ -90,6 +89,7 @@ public class MainActivity extends AppCompatActivity
                     LOCATION_PERMISSION_REQUEST_CODE);
             return;
         }
+        mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() == null) {
             createSignInIntent();
             return;
@@ -217,6 +217,14 @@ public class MainActivity extends AppCompatActivity
                 Toast.makeText(this, "Sign in failed.", Toast.LENGTH_SHORT).show();
 
                 finish();
+            }
+        }
+        else if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                finish();
+            } else {
+                initialize();
             }
         }
     }
