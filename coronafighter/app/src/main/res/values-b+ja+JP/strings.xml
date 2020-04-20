@@ -13,6 +13,7 @@
     <string name="infection_report_confirm_msg_by_tracing">履歴データをもとに新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
     <string name="infection_area_delete_msg">新型コロナウイルス感染エリアを削除します。よろしいでしょうか？</string>
 
+    <string name="title_activity_main">コロナ友助</string>
     <string name="title_home">ホーム</string>
     <string name="title_dashboard">ダッシュボード</string>
     <string name="title_notifications">お知らせ</string>

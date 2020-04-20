@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">coronamutualassistance</string>
+    <string name="app_name" translatable="false">CoronaMutualAssistance</string>
     <string name="title_activity_maps">CoronaMutualAssistance</string>
     <string name="logout">Logout</string>
     <string name="trace_position_start">Trace Position Start</string>
@@ -12,10 +12,12 @@
     <string name="infection_report_confirm_msg">Add new coronavirus infection area. is this good?</string>
     <string name="infection_report_confirm_msg_by_tracing">Add new coronavirus infection area based on historical data. is this good?</string>
     <string name="infection_area_delete_msg">Delete coronavirus infection area. is this good?</string>
-    <string name="title_activity_main">MainActivity</string>
+    <string name="title_activity_main">CoronaMutualAssistance</string>
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dash Board</string>
     <string name="title_notifications">Notifications</string>
-    <string name="home_msg">This is home fragment</string>
+    <string name="home_msg">Visualize the infected area with a hit map. \ n
+        Infection alert area is displayed on the dashboard. \ n
+        The notification is the information on the passage of infection extracted from the past movement history data.</string>
 
 </resources>
