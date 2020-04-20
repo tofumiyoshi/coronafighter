@@ -219,15 +219,36 @@ public class MainActivity extends AppCompatActivity
                 finish();
             }
         }
-        else if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                    != PackageManager.PERMISSION_GRANTED) {
-                finish();
-            } else {
-                initialize();
-            }
+    }
+
+    /**
+     * Android Quickstart:
+     * https://developers.google.com/sheets/api/quickstart/android
+     *
+     * Respond to requests for permissions at runtime for API 23 and above.
+     * @param requestCode The request code passed in
+     *     requestPermissions(android.app.Activity, String, int, String[])
+     * @param permissions The requested permissions. Never null.
+     * @param grantResults The grant results for the corresponding permissions
+     *     which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
+     */
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode, @NonNull String[]permissions, @NonNull int[] grantResults) {
+
+        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
+            return;
+        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            initialize();
+        }
+        else {
+            Toast.makeText(this, "Location Permission denied", Toast.LENGTH_SHORT).show();
+            finish();
         }
     }
+
 
     public void signOut() {
         AuthUI.getInstance()
