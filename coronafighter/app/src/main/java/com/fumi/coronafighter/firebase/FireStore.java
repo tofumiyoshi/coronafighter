@@ -1,14 +1,17 @@
 package com.fumi.coronafighter.firebase;
 
+import android.app.Application;
+import android.content.Context;
 import android.location.Location;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.lifecycle.ViewModelStoreOwner;
 
 import com.fumi.coronafighter.Constants;
-import com.fumi.coronafighter.CoronaFighterApplication;
-import com.fumi.coronafighter.MapsActivity;
+import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.SettingInfos;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -16,6 +19,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -44,32 +48,26 @@ public class FireStore {
     private static final String TAG = "FireStore";
 
     private static FirebaseFirestore mFirebaseFirestore;
-    private static MapsActivity mActivity;
+    public static FirebaseAuth mAuth;
+    public static Context mContext;
 
-    private static ListenerRegistration mListenerStatus;
+    private static CurrentPositionViewModel mViewModel;
+
     private static ListenerRegistration mListenerAlert;
     public static int new_coronavirus_infection_flag = 0;
     public static Location currentLocation;
     public static Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
+    public static Date refreshAlarmAreasTime = null;
 
-    public static void init(MapsActivity activity) {
+    public static void init(Context context) {
         mFirebaseFirestore = FirebaseFirestore.getInstance();
+        mAuth = FirebaseAuth.getInstance();
 
-        mActivity = activity;
+        mContext = context;
 
-        mListenerStatus = mFirebaseFirestore.collection(mActivity.mAuth.getCurrentUser().getEmail())
-                .whereEqualTo(FieldPath.documentId(),"status")
-                .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                    @Override
-                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
-                            new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
-
-                            mActivity.invalidateOptionsMenu();
-                            break;
-                        }
-                    }
-                });
+        Application app = (Application)mContext.getApplicationContext();
+        ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
+        mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
 
         mListenerAlert = mFirebaseFirestore.collection("corona-infos")
                 .whereEqualTo(FieldPath.documentId(),"update-info")
@@ -347,7 +345,7 @@ public class FireStore {
         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
         Date now = Calendar.getInstance().getTime();
 
-        if (mActivity.refreshAlarmAreasTime != null && mActivity.refreshAlarmAreasTime.after(now)) {
+        if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(now)) {
             return;
         }
 
@@ -356,7 +354,10 @@ public class FireStore {
         // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
         // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
         // +以降のJ88は建物コード（14×14m）を意味しています。
-        mActivity.setHeatMap(mAlertAreas);
+//        if (mGoogleMap != null) {
+//            mGoogleMap.setHeatMap(mAlertAreas);
+//        }
+        mViewModel.selectAlertAreas(mAlertAreas);
 
         ArrayList<String> locCode1s = new ArrayList<String>();
         for(String locCode : locCodes){
@@ -383,8 +384,6 @@ public class FireStore {
                                             @Override
                                             public void onComplete(@NonNull Task<QuerySnapshot> task) {
                                                 if (task.isSuccessful()) {
-                                                    CoronaFighterApplication app = (CoronaFighterApplication)mActivity.getApplication();
-
                                                     for (QueryDocumentSnapshot document : task.getResult()) {
                                                         Log.d(TAG, document.getId() + " => " + document.getData());
 
@@ -395,7 +394,7 @@ public class FireStore {
                                                         addAlertAreas(code, data, mAlertAreas);
                                                     }
 
-                                                    mActivity.setHeatMap(mAlertAreas);
+                                                    mViewModel.selectAlertAreas(mAlertAreas);
 
                                                 } else {
                                                     Log.d(TAG, "Error getting documents: ", task.getException());

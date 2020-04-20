@@ -12,4 +12,10 @@
     <string name="infection_report_confirm_msg">Add new coronavirus infection area. is this good?</string>
     <string name="infection_report_confirm_msg_by_tracing">Add new coronavirus infection area based on historical data. is this good?</string>
     <string name="infection_area_delete_msg">Delete coronavirus infection area. is this good?</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dash Board</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="home_msg">This is home fragment</string>
+
 </resources>

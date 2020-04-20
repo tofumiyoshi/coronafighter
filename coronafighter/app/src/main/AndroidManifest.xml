@@ -15,15 +15,15 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
         <service
             android:name=".LocationService"
             android:enabled="true"
-            android:exported="true"></service>
-
+            android:exported="true" />
         <service
             android:name=".AlarmService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -33,16 +33,14 @@
             android:value="@string/adsmod_app_id" />
 
         <activity
-            android:name=".MapsActivity"
-            android:label="@string/title_activity_maps"
-            android:screenOrientation="portrait"
-            tools:ignore="LockedOrientationActivity">
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
     </application>
 
 </manifest>

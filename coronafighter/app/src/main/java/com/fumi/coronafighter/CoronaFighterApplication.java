@@ -56,6 +56,8 @@ public class CoronaFighterApplication extends Application implements ViewModelSt
 
     @Override
     public void onCreate() {
+        super.onCreate();
+
         /** Called when the Application-class is first created. */
         Log.v(TAG,"--- onCreate() in ---");
 

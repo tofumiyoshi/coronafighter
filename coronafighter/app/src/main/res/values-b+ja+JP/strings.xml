@@ -6,10 +6,19 @@
     <string name="trace_position_stop">追跡停止</string>
     <string name="infection_report">感染報告</string>
     <string name="infection_report_cancel">報告取消</string>
-    <string name="refresh_alarm_areas">表示更新</string>
+    <string name="refresh_alarm_areas">アラーム領域更新</string>
     <string name="infection_area_delete">報告削除</string>
 
     <string name="infection_report_confirm_msg">新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
     <string name="infection_report_confirm_msg_by_tracing">履歴データをもとに新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>
     <string name="infection_area_delete_msg">新型コロナウイルス感染エリアを削除します。よろしいでしょうか？</string>
+
+    <string name="title_home">ホーム</string>
+    <string name="title_dashboard">ダッシュボード</string>
+    <string name="title_notifications">お知らせ</string>
+
+    <string name="home_msg">感染地域をヒットマップで可視化します。\n
+        ダッシュボードに感染警告地域を表示します。\n
+        お知らせには過去の移動履歴データから抽出された感染通路情報です。</string>
+
 </resources>
