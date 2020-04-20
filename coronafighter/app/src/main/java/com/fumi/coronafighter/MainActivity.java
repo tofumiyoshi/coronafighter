@@ -95,6 +95,43 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        BottomNavigationView navView = findViewById(R.id.nav_view);
+        // Passing each menu ID as a set of Ids because each
+        // menu should be considered as top level destinations.
+        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
+                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
+                .build();
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+        NavigationUI.setupWithNavController(navView, navController);
+
+        FireStore.init(getApplicationContext());
+
+        Intent intent = new Intent(getApplication(), LocationService.class);
+        startService(intent);
+
+        Intent intent2 = new Intent(getApplication(), AlarmService.class);
+        startService(intent2);
+
+        mFirebaseFirestore = FirebaseFirestore.getInstance();
+        mListenerStatus = mFirebaseFirestore.collection(mAuth.getCurrentUser().getEmail())
+                .whereEqualTo(FieldPath.documentId(),"status")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
+                            FireStore.new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
+
+                            invalidateOptionsMenu();
+                            break;
+                        }
+                    }
+                });
+
+        initAds();
+    }
+
+    private void initAds() {
         MobileAds.initialize(this, new OnInitializationCompleteListener() {
             @Override
             public void onInitializationComplete(InitializationStatus initializationStatus) {
@@ -152,39 +189,6 @@ public class MainActivity extends AppCompatActivity
         });
         AdRequest adRequest = new AdRequest.Builder().build();
         mAdView.loadAd(adRequest);
-
-        BottomNavigationView navView = findViewById(R.id.nav_view);
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
-        AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
-                .build();
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
-        NavigationUI.setupWithNavController(navView, navController);
-
-        FireStore.init(getApplicationContext());
-
-        Intent intent = new Intent(getApplication(), LocationService.class);
-        startService(intent);
-
-        Intent intent2 = new Intent(getApplication(), AlarmService.class);
-        startService(intent2);
-
-        mFirebaseFirestore = FirebaseFirestore.getInstance();
-        mListenerStatus = mFirebaseFirestore.collection(mAuth.getCurrentUser().getEmail())
-                .whereEqualTo(FieldPath.documentId(),"status")
-                .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                    @Override
-                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
-                            FireStore.new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
-
-                            invalidateOptionsMenu();
-                            break;
-                        }
-                    }
-                });
     }
 
     public void createSignInIntent() {
@@ -210,6 +214,7 @@ public class MainActivity extends AppCompatActivity
             IdpResponse response = IdpResponse.fromResultIntent(data);
             if (resultCode == RESULT_OK) {
                 initialize();
+                return;
             } else {
                 // Sign in failed. If response is null the user canceled the
                 // sign-in flow using the back button. Otherwise check
@@ -242,13 +247,13 @@ public class MainActivity extends AppCompatActivity
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
             initialize();
+            return;
         }
         else {
             Toast.makeText(this, "Location Permission denied", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
-
 
     public void signOut() {
         AuthUI.getInstance()
