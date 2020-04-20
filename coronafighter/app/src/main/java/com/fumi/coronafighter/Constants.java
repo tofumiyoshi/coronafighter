@@ -10,7 +10,4 @@ public class Constants {
 
     public static final int OPEN_LOCATION_CODE_LENGTH_TO_GENERATE = 11;
     public static final int OPEN_LOCATION_CODE_LENGTH_TO_COMPARE = 6;
-
-    public static final int INFECTION_SATURATION_CNT_MIN = 0;
-    public static final int INFECTION_SATURATION_CNT_MAX = 10;
 }

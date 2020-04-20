@@ -48,8 +48,8 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.maps.android.heatmaps.Gradient;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
+import com.google.maps.android.heatmaps.WeightedLatLng;
 import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.ArrayList;
@@ -511,17 +511,41 @@ public class MapsActivity extends AppCompatActivity
         mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
     }
 
-    ArrayList<Marker> marks = new ArrayList<Marker>();
-    public void setAlarmAreas(List<AlarmInfo> alarmAreas) {
-        for (Marker mark : marks) {
-            mark.remove();
+    private TileOverlay mOverlayAlarm;
+    public void setAlarmAreas(List<AlarmInfo> alarminfos) {
+        if (mOverlayAlarm != null) {
+            mOverlayAlarm.remove();
+        }
+        if (alarminfos == null || alarminfos.size() == 0) {
+            return;
         }
 
-        for (AlarmInfo alarmArea : alarmAreas) {
-            LatLng location = new LatLng(alarmArea.getLatitude(), alarmArea.getLongitude());
-            Marker mark = mMap.addMarker(new MarkerOptions().position(location).title("感染地"));
+        ArrayList<WeightedLatLng> infos = new ArrayList<WeightedLatLng>();
+        for (AlarmInfo info: alarminfos) {
+            LatLng latLng = new LatLng(info.getLatitude(), info.getLongitude());
+            double intensity = 0.0;
+            if (info.getCnt() >= SettingInfos.infection_saturation_cnt_max) {
+                intensity = 1.0;
+            }
+            else if (info.getCnt() <= SettingInfos.infection_saturation_cnt_min) {
+                intensity = 0.0;
+            }
+            else {
+                intensity = ((double) info.getCnt() - SettingInfos.infection_saturation_cnt_min)/
+                        (SettingInfos.infection_saturation_cnt_max - SettingInfos.infection_saturation_cnt_min);
+            }
 
-            marks.add(mark);
+            WeightedLatLng weightedLatLng = new WeightedLatLng(latLng, intensity);
+
+            String str = String.format("%+10.4f, %+10.4f, %+10.4f", weightedLatLng.getPoint().x, weightedLatLng.getPoint().y, weightedLatLng.getIntensity());
+            Log.e(TAG, "weightedLatLng = " + str);
+            infos.add(weightedLatLng);
         }
+
+        mProvider = new HeatmapTileProvider.Builder()
+                .weightedData(infos)
+                .build();
+        // Add a tile overlay to the map, using the heat map tile provider.
+        mOverlayAlarm = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
     }
 }

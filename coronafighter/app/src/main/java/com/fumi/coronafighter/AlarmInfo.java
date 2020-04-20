@@ -7,6 +7,7 @@ public class AlarmInfo implements Parcelable {
     private double latitude;
     private double longitude;
     private String locCode;
+    private int cnt;
 
     public double getLatitude() {
         return latitude;
@@ -32,6 +33,14 @@ public class AlarmInfo implements Parcelable {
         this.locCode = locCode;
     }
 
+    public int getCnt() {
+        return cnt;
+    }
+
+    public void setCnt(int cnt) {
+        this.cnt = cnt;
+    }
+
     public boolean equals(Object obj) {
         if (obj == null || !(obj instanceof AlarmInfo)) {
             return false;
@@ -46,6 +55,7 @@ public class AlarmInfo implements Parcelable {
         this.latitude = in.readDouble();
         this.longitude = in.readDouble();
         this.locCode = in.readString();
+        this.cnt = in.readInt();
     }
 
     @Override
@@ -58,5 +68,6 @@ public class AlarmInfo implements Parcelable {
         dest.writeDouble(this.latitude);
         dest.writeDouble(this.longitude);
         dest.writeString(this.locCode);
+        dest.writeInt(this.cnt);
     }
 }

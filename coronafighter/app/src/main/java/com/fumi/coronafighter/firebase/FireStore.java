@@ -95,6 +95,9 @@ public class FireStore {
                             SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
 
                             SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
+
+                            SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
+                            SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
                         }
                     }
                 });
@@ -434,14 +437,15 @@ public class FireStore {
         OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
         LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
         double intensity = 0.0;
-        if (cnt >= Constants.INFECTION_SATURATION_CNT_MAX) {
+        if (cnt >= SettingInfos.infection_saturation_cnt_max) {
             intensity = 1.0;
         }
-        else if (cnt <= Constants.INFECTION_SATURATION_CNT_MIN) {
+        else if (cnt <= SettingInfos.infection_saturation_cnt_min) {
             intensity = 0.0;
         }
         else {
-            intensity = ((double) cnt - Constants.INFECTION_SATURATION_CNT_MIN)/Constants.INFECTION_SATURATION_CNT_MAX;
+            intensity = ((double) cnt - SettingInfos.infection_saturation_cnt_min)/
+                    (SettingInfos.infection_saturation_cnt_max- SettingInfos.infection_saturation_cnt_min);
         }
         if (intensity <= 0.0) {
             return;

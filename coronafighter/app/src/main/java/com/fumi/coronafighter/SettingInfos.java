@@ -13,4 +13,9 @@ public class SettingInfos {
     public static int refresh_alarm_areas_min_interval_second = 30;
 
     public static int alarm_limit = 7;
+
+    public static int infection_saturation_cnt_min = 0;
+    public static int infection_saturation_cnt_max = 10;
+
+
 }

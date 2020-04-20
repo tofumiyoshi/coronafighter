@@ -178,15 +178,26 @@ public class AlarmService extends Service {
                                 Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                         String locCode = olc.getCode();
 
-                        AlarmInfo info = new AlarmInfo();
-                        info.setLatitude(latitude);
-                        info.setLongitude(longitude);
-                        info.setLocCode(locCode);
-
-                        if (locList.contains(info)) {
-                            continue;
+                        boolean flag = false;
+                        for(int i=0; i<locList.size(); i++) {
+                            AlarmInfo info = locList.get(i);
+                            if (locCode.equals(info.getLocCode())) {
+                                info.setCnt(info.getCnt() + 1);
+                                flag = true;
+                                break;
+                            }
                         }
-                        locList.add(info);
+
+                        if (!flag) {
+                            AlarmInfo info = new AlarmInfo();
+                            OpenLocationCode.CodeArea area = olc.decode();
+                            info.setLatitude(area.getCenterLatitude());
+                            info.setLongitude(area.getCenterLongitude());
+                            info.setLocCode(locCode);
+                            info.setCnt(1);
+
+                            locList.add(info);
+                        }
                     }
 
                     chkLoc4Alaram(locList, timestamp, res);
@@ -224,9 +235,9 @@ public class AlarmService extends Service {
                         }
 
                         final String locCode1 = docId;
-                        for (final AlarmInfo locCode : locList) {
-                            if (locCode.getLocCode().startsWith(locCode1)) {
-                                final String locCode2 = locCode.getLocCode().substring(6);
+                        for (final AlarmInfo info : locList) {
+                            if (info.getLocCode().startsWith(locCode1)) {
+                                final String locCode2 = info.getLocCode().substring(6);
                                 Task<DocumentSnapshot> task2 = mFirebaseFirestore.collection("corona-infos")
                                         .document(locCode1)
                                         .collection("sub-areas")
@@ -234,15 +245,15 @@ public class AlarmService extends Service {
                                         .get();
 
                                 DocumentSnapshot documentSnapshot = Tasks.await(task2);
-                                if (documentSnapshot != null) {
+                                if (documentSnapshot != null && documentSnapshot.getData() != null) {
                                     Iterator<String> i = documentSnapshot.getData().keySet().iterator();
                                     while(i.hasNext()) {
                                         String key = i.next();
                                         Timestamp ts = documentSnapshot.getTimestamp(key);
 
                                         if (ts.compareTo(timestamp) > 0) {
-                                            res.add(locCode);
-                                            Log.d(TAG, "add to alarm areas:" + locCode.getLocCode());
+                                            res.add(info);
+                                            Log.d(TAG, "add to alarm areas:" + info.getLocCode());
                                             break;
                                         }
                                     }
