@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.Context;
 import android.location.Location;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -12,6 +13,7 @@ import androidx.lifecycle.ViewModelStoreOwner;
 
 import com.fumi.coronafighter.Constants;
 import com.fumi.coronafighter.CurrentPositionViewModel;
+import com.fumi.coronafighter.MainActivity;
 import com.fumi.coronafighter.SettingInfos;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -59,7 +61,7 @@ public class FireStore {
     public static Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
     public static Date refreshAlarmAreasTime = null;
 
-    public static void init(Context context) {
+    public static void init(final Context context) {
         mFirebaseFirestore = FirebaseFirestore.getInstance();
         mAuth = FirebaseAuth.getInstance();
 
@@ -77,25 +79,30 @@ public class FireStore {
                         if (e != null) {
                             return;
                         }
-                        if(currentLocation != null) {
-                            refreshAlertAreas(currentLocation);
-                        }
+                        try {
+                            if(currentLocation != null) {
+                                refreshAlertAreas(currentLocation);
+                            }
 
-                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                            SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
-                            SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
+                            for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                                SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
+                                SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
 
-                            SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
-                            SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
+                                SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
+                                SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
 
-                            SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
+                                SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
 
-                            SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
+                                SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
 
-                            SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
+                                SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
 
-                            SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
-                            SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
+                                SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
+                                SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
+                            }
+                        } catch (Throwable t) {
+                            Log.i(TAG, t.getMessage(), t);
+                            Toast.makeText(context, t.getMessage(), Toast.LENGTH_LONG).show();
                         }
                     }
                 });
