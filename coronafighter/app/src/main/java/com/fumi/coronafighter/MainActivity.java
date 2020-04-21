@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -54,6 +55,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity
         implements ActivityCompat.OnRequestPermissionsResultCallback,
@@ -343,7 +345,7 @@ public class MainActivity extends AppCompatActivity
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                FireStore.reportNewCoronavirusInfection(mAuth.getCurrentUser(), 1);
+                                new FireStore.InflectionReportTask().execute(Integer.toString(1));
                             }
                         })
                         .setNegativeButton("Cancel", null)
@@ -351,7 +353,7 @@ public class MainActivity extends AppCompatActivity
 
                 break;
             case R.id.infection_report_cancel:
-                FireStore.reportNewCoronavirusInfection(mAuth.getCurrentUser(), 0);
+                new FireStore.InflectionReportTask().execute(Integer.toString(0));
                 break;
 
             case R.id.refresh_alarm_areas:

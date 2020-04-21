@@ -3,6 +3,7 @@ package com.fumi.coronafighter.firebase;
 import android.app.Application;
 import android.content.Context;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -11,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.lifecycle.ViewModelStoreOwner;
 
+import com.fumi.coronafighter.AlarmInfo;
 import com.fumi.coronafighter.Constants;
 import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.MainActivity;
@@ -20,9 +22,11 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
@@ -33,6 +37,7 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.maps.android.heatmaps.WeightedLatLng;
 import com.google.maps.android.projection.SphericalMercatorProjection;
 import com.google.openlocationcode.OpenLocationCode;
@@ -45,6 +50,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class FireStore {
     private static final String TAG = "FireStore";
@@ -109,6 +115,14 @@ public class FireStore {
     }
 
     public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode, Timestamp timestamp) {
+        WriteBatch batch = mFirebaseFirestore.batch();
+
+        registNewCoronavirusInfo(batch, currentUser, locCode, timestamp);
+
+        batch.commit();
+    }
+
+    public static void registNewCoronavirusInfo(WriteBatch batch, FirebaseUser currentUser, String locCode, Timestamp timestamp) {
         // Create a new user with a first and last name
         Map<String, Object> info = new HashMap<>();
         info.put(currentUser.getEmail().replace(".", "-"), timestamp);
@@ -120,42 +134,28 @@ public class FireStore {
         String locCode1 = locCode.substring(0, Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
         String locCode2 = locCode.substring(Constants.OPEN_LOCATION_CODE_LENGTH_TO_COMPARE);
 
-        mFirebaseFirestore.collection("corona-infos")
-                .document(locCode1)
-                .set(info2, SetOptions.merge())
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "DocumentSnapshot successfully written!");
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error writing document", e);
-                    }
-                });
+        DocumentReference dr1 =
+                    mFirebaseFirestore.collection("corona-infos")
+                                        .document(locCode1);
+        batch.set(dr1, info2, SetOptions.merge());
 
-        mFirebaseFirestore.collection("corona-infos")
+        DocumentReference dr2 =
+                mFirebaseFirestore.collection("corona-infos")
                 .document(locCode1)
                 .collection("sub-areas")
-                .document(locCode2)
-                .set(info, SetOptions.merge())
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "DocumentSnapshot successfully written!");
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error writing document", e);
-                    }
-                });
+                .document(locCode2);
+        batch.set(dr2, info, SetOptions.merge());
     }
 
-    public static void removeNewCoronavirusInfo(final FirebaseUser currentUser, final String locCode) {
+    public static void removeNewCoronavirusInfo(final FirebaseUser currentUser, final String locCode) throws ExecutionException, InterruptedException {
+        WriteBatch batch = mFirebaseFirestore.batch();
+
+        removeNewCoronavirusInfo(batch, currentUser, locCode);
+
+        batch.commit();
+    }
+
+    public static void removeNewCoronavirusInfo(WriteBatch batch, final FirebaseUser currentUser, final String locCode) throws ExecutionException, InterruptedException {
         final String field_key = currentUser.getEmail().replace(".", "-");
 
         // Create a new user with a first and last name
@@ -170,55 +170,36 @@ public class FireStore {
         }
 
         // Add a new document with a generated ID;
-        mFirebaseFirestore.collection("corona-infos")
+        Task<QuerySnapshot> task = mFirebaseFirestore.collection("corona-infos")
                 .document(locCode1)
                 .collection("sub-areas")
                 .whereGreaterThan(field_key, timeStart)
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                Log.d(TAG, document.getId() + " => " + document.getData());
-                                String locCode2 = document.getId();
+                .get();
+        QuerySnapshot snap = Tasks.await(task);
+        if (snap != null) {
+            for (QueryDocumentSnapshot document : snap) {
+                Log.d(TAG, document.getId() + " => " + document.getData());
+                String locCode2 = document.getId();
 
-                                if (locCode.length() > 6) {
-                                    if (!locCode2.equals(locCode.substring(6))) {
-                                        continue;
-                                    }
-                                }
-
-                                Map<String, Object> info = new HashMap<>();
-                                info.put(field_key, FieldValue.delete());
-
-                                mFirebaseFirestore.collection("corona-infos")
-                                        .document(locCode.substring(0, 6))
-                                        .collection("sub-areas")
-                                        .document(locCode2)
-                                        .update(info)
-                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                            @Override
-                                            public void onSuccess(Void aVoid) {
-                                                Log.d(TAG, "DocumentSnapshot successfully written!");
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                Log.w(TAG, "Error writing document", e);
-                                            }
-                                        });
-
-                            }
-                        } else {
-                            Log.d(TAG, "Error getting documents: ", task.getException());
-                        }
+                if (locCode.length() > 6) {
+                    if (!locCode2.equals(locCode.substring(6))) {
+                        continue;
                     }
-                });
+                }
+
+                Map<String, Object> info = new HashMap<>();
+                info.put(field_key, FieldValue.delete());
+
+                DocumentReference doc = mFirebaseFirestore.collection("corona-infos")
+                        .document(locCode.substring(0, 6))
+                        .collection("sub-areas")
+                        .document(locCode2);
+                batch.update(doc, info);
+            }
+        }
     }
 
-    public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) {
+    public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) throws ExecutionException, InterruptedException {
         mListenerAlert.remove();
 
         // Create a new user with a first and last name
@@ -227,21 +208,10 @@ public class FireStore {
         activityInfo.put("new_coronavirus_infection_flag", new_coronavirus_infection_flag);
 
         // Add a new document with a generated ID;
-        mFirebaseFirestore.collection(currentUser.getEmail())
+        Task<Void> task = mFirebaseFirestore.collection(currentUser.getEmail())
                 .document("status")
-                .set(activityInfo, SetOptions.merge())
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "DocumentSnapshot successfully written!");
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error writing document", e);
-                    }
-                });
+                .set(activityInfo, SetOptions.merge());
+        Tasks.await(task);
 
         // 警報基準
         // 日時：　過去７日間
@@ -251,51 +221,42 @@ public class FireStore {
         Timestamp timestamp = new Timestamp(date1);
 
         if (new_coronavirus_infection_flag == 1) {
-            mFirebaseFirestore.collection(currentUser.getEmail()).whereGreaterThan("timestamp", timestamp)
-                    .get()
-                    .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                        @Override
-                        public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                            if (task.isSuccessful()) {
-                                QuerySnapshot snapshot = task.getResult();
-                                for(DocumentSnapshot doc: snapshot.getDocuments()){
-                                    double latitude = doc.getDouble("latitude");
-                                    double longitude = doc.getDouble("longitude");
-                                    Timestamp timestamp = doc.getTimestamp("timestamp");
+            Task<QuerySnapshot> task2 = mFirebaseFirestore.collection(currentUser.getEmail())
+                                            .whereGreaterThan("timestamp", timestamp)
+                                            .get();
+            QuerySnapshot snapshot = Tasks.await(task2);
+            WriteBatch batch = mFirebaseFirestore.batch();
 
-                                    OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
-                                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                                    String locCode = olc.getCode();
-                                    registNewCoronavirusInfo(currentUser, locCode, timestamp);
-                                }
-                            } else {
-                                Log.d(TAG, "get failed with ", task.getException());
-                            }
-                        }
-                    });
+            for(DocumentSnapshot doc: snapshot.getDocuments()){
+                double latitude = doc.getDouble("latitude");
+                double longitude = doc.getDouble("longitude");
+                Timestamp timestamp2 = doc.getTimestamp("timestamp");
+
+                OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
+                        Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                String locCode = olc.getCode();
+                registNewCoronavirusInfo(batch, currentUser, locCode, timestamp2);
+            }
+            batch.commit();
+
         } else {
-            mFirebaseFirestore.collection("corona-infos")
-                    .get()
-                    .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                        @Override
-                        public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                            if (task.isSuccessful()) {
-                                QuerySnapshot snapshot = task.getResult();
-                                List<DocumentSnapshot> list = snapshot.getDocuments();
-                                for(DocumentSnapshot doc: list){
-                                    String docId = doc.getId();
-                                    if (docId.equals("update-info")) {
-                                        continue;
-                                    }
+            Task<QuerySnapshot> task2 = mFirebaseFirestore
+                                            .collection("corona-infos")
+                                            .get();
+            QuerySnapshot snapshot = Tasks.await(task2);
 
-                                    //Log.d("firebase-store", "locCode = " + locCode);
-                                    removeNewCoronavirusInfo(currentUser, docId);
-                                }
-                            } else {
-                                Log.d(TAG, "get failed with ", task.getException());
-                            }
-                        }
-                    });
+            WriteBatch batch = mFirebaseFirestore.batch();
+            List<DocumentSnapshot> list = snapshot.getDocuments();
+            for(DocumentSnapshot doc: list){
+                String docId = doc.getId();
+                if (docId.equals("update-info")) {
+                    continue;
+                }
+
+                //Log.d("firebase-store", "locCode = " + locCode);
+                removeNewCoronavirusInfo(batch, currentUser, docId);
+            }
+            batch.commit();
         }
 
         reportNewCoronavirusInfectionComlete(timestamp);
@@ -484,5 +445,65 @@ public class FireStore {
         }
 
         return res;
+    }
+
+    public static void removeInflectionInfo(List<String> locCodes) {
+        WriteBatch batch = mFirebaseFirestore.batch();
+        try {
+
+            for (String locCode : locCodes) {
+                removeNewCoronavirusInfo(batch, mAuth.getCurrentUser(), locCode);
+            }
+
+            batch.commit();
+        } catch (ExecutionException e) {
+            Log.d(TAG, e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Log.d(TAG, e.getMessage(), e);
+        }
+    }
+
+    public static void maintainace() {
+        if (mAuth == null || mAuth.getCurrentUser() == null) {
+            return;
+        }
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
+        Date date1 = calendar.getTime();
+
+        String docIdMin = Constants.DATE_FORMAT_4_NAME.format(date1);
+        final String mail = mAuth.getCurrentUser().getEmail();
+        mFirebaseFirestore.collection(mail)
+                .whereLessThan(FieldPath.documentId(), docIdMin)
+                .get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                        @Override
+                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                            WriteBatch batch = mFirebaseFirestore.batch();
+
+                            for (DocumentSnapshot doc : queryDocumentSnapshots) {
+                                mFirebaseFirestore.collection(mail).document(doc.getId()).delete();
+                            }
+
+                            batch.commit();
+                        }
+                    });
+    }
+
+    public static class InflectionReportTask extends AsyncTask<String, Void, Void>{
+        private static final String TAG = "InflectionReportTask";
+
+        @Override
+        protected Void doInBackground(String... args) {
+            try {
+                FirebaseAuth auth = FirebaseAuth.getInstance();
+                FireStore.reportNewCoronavirusInfection(auth.getCurrentUser(), Integer.parseInt(args[0]));
+            } catch (ExecutionException e) {
+                Log.i(TAG, e.getMessage(), e);
+            } catch (InterruptedException e) {
+                Log.i(TAG, e.getMessage(), e);
+            }
+            return null;
+        }
     }
 }

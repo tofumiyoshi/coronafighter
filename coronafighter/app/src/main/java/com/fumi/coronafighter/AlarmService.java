@@ -14,6 +14,7 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
@@ -162,6 +163,9 @@ public class AlarmService extends Service {
             if (user == null) {
                 return res;
             }
+
+            // delete past data not used
+            FireStore.maintainace();
 
             Task<QuerySnapshot> task = mFirebaseFirestore
                     .collection(user.getEmail())

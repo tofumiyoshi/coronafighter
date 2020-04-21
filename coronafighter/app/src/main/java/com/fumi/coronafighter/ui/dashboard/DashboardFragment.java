@@ -31,6 +31,7 @@ import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.WriteBatch;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.maps.android.heatmaps.WeightedLatLng;
 import com.google.openlocationcode.OpenLocationCode;
@@ -39,6 +40,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class DashboardFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "DashboardFragment";
@@ -132,9 +134,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                                     Date date1 = Calendar.getInstance().getTime();
                                     Timestamp timestamp = new Timestamp(date1);
 
-                                    for(String locCode : locCodes) {
-                                        FireStore.removeNewCoronavirusInfo(mAuth.getCurrentUser(), locCode);
-                                    }
+                                    FireStore.removeInflectionInfo(locCodes);
                                 }
                             })
                             .setNegativeButton("Cancel", null)
