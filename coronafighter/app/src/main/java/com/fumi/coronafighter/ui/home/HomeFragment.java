@@ -13,6 +13,7 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 
 import com.fumi.coronafighter.R;
+import com.google.firebase.auth.FirebaseAuth;
 
 public class HomeFragment extends Fragment {
 
@@ -21,6 +22,13 @@ public class HomeFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_home, container, false);
         TextView textView = root.findViewById(R.id.text_home);
         textView.setText(getResources().getString(R.string.home_msg));
+
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        if (auth != null && auth.getCurrentUser() != null) {
+            TextView textViewMail = root.findViewById(R.id.textViewMail);
+            textViewMail.setText(auth.getCurrentUser().getEmail());
+        }
+
         return root;
     }
 }

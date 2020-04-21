@@ -55,7 +55,8 @@ import java.util.Iterator;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity
-        implements ActivityCompat.OnRequestPermissionsResultCallback {
+        implements ActivityCompat.OnRequestPermissionsResultCallback,
+        NavController.OnDestinationChangedListener {
     private static final String TAG = "MainActivity";
 
     private AdView mAdView;
@@ -103,6 +104,7 @@ public class MainActivity extends AppCompatActivity
                 R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        navController.addOnDestinationChangedListener(this);
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(navView, navController);
 
@@ -282,19 +284,31 @@ public class MainActivity extends AppCompatActivity
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
 
-        if (FireStore.new_coronavirus_infection_flag == 0) {
-            MenuItem item = menu.findItem(R.id.infection_report);
-            item.setEnabled(true);
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        int idCurrentDestination = navController.getCurrentDestination().getId();
+        if (idCurrentDestination == R.id.navigation_dashboard) {
+            if (FireStore.new_coronavirus_infection_flag == 0) {
+                MenuItem item = menu.findItem(R.id.infection_report);
+                item.setEnabled(true);
 
-            MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
-            item2.setEnabled(false);
-        }
-        else {
+                MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
+                item2.setEnabled(false);
+            }
+            else {
+                MenuItem item = menu.findItem(R.id.infection_report);
+                item.setEnabled(false);
+
+                MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
+                item2.setEnabled(true);
+            }
+        } else if (idCurrentDestination == R.id.navigation_notifications ||
+                idCurrentDestination == R.id.navigation_home) {
             MenuItem item = menu.findItem(R.id.infection_report);
             item.setEnabled(false);
-
             MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
-            item2.setEnabled(true);
+            item2.setEnabled(false);
+            MenuItem item3 = menu.findItem(R.id.refresh_alarm_areas);
+            item3.setEnabled(false);
         }
 
         return true;
@@ -335,5 +349,10 @@ public class MainActivity extends AppCompatActivity
                 break;
         }
         return false;
+    }
+
+    @Override
+    public void onDestinationChanged(@NonNull NavController controller, @NonNull NavDestination destination, @Nullable Bundle arguments) {
+        invalidateOptionsMenu();
     }
 }
