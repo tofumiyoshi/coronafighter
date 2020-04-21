@@ -16,11 +16,9 @@ import androidx.lifecycle.ViewModelStoreOwner;
 
 import com.fumi.coronafighter.AlarmAreasViewModel;
 import com.fumi.coronafighter.AlarmInfo;
-import com.fumi.coronafighter.Constants;
 import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.R;
 import com.fumi.coronafighter.SettingInfos;
-import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -29,23 +27,20 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
-import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.maps.android.heatmaps.WeightedLatLng;
-import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 
 public class NotificationsFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "NotificationsFragment";
+
     private AlarmAreasViewModel mAreasViewModel;
     private CurrentPositionViewModel mViewModel;
 
-    private List<AlarmInfo> mAlarminfos;
+    private List<AlarmInfo> mAlarminfos = new ArrayList<AlarmInfo>();
 
     public FirebaseAuth mAuth;
     private GoogleMap mMap;
@@ -72,6 +67,8 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.setMyLocationEnabled(true);
+        mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
         Application app = getActivity().getApplication();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
@@ -81,21 +78,14 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         mAreasViewModel.getSelected().observe(this, new Observer<ArrayList<AlarmInfo>>() {
             @Override
             public void onChanged(final ArrayList<AlarmInfo> infos) {
-                if (mMap == null || infos.size() <=0) {
+                if (mMap == null || infos == null || infos.size() <=0) {
+                    Log.i(TAG, "No value in map or infos of AlarmAreasViewModel's on change.");
                     return;
                 }
 
-                float zoom = mMap.getCameraPosition().zoom;
-                if (zoom < SettingInfos.map_min_zoom - 3) {
-                    zoom = SettingInfos.map_default_zoom;
-                }
-                LatLng latLng = new LatLng(infos.get(0).getLatitude(), infos.get(0).getLongitude());
-                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
-                // カメラの位置に移動
-                mMap.moveCamera(camera);
-
-                setAlarmAreas(infos);
-                mAlarminfos = infos;
+                mAlarminfos.clear();
+                mAlarminfos.addAll(infos);
+                setAlarmAreas(mAlarminfos);
             }
         });
 
@@ -104,32 +94,32 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         mViewModel.getSelected().observe(this, new Observer<Location>() {
             @Override
             public void onChanged(final Location location) {
-                if (mMap == null) {
+                if (mMap == null || location == null) {
+                    Log.i(TAG, "No value in map or location of CurrentPositionViewModel's on change.");
                     return;
                 }
-                mMap.setMyLocationEnabled(true);
-                mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
                 float zoom = mMap.getCameraPosition().zoom;
-                if (zoom < SettingInfos.map_min_zoom - 3) {
+                if (zoom < SettingInfos.map_min_zoom) {
                     zoom = SettingInfos.map_default_zoom;
-                }
 
-                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
-                // カメラの位置に移動
-                mMap.moveCamera(camera);
+                    LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                    CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
+                    // カメラの位置に移動
+                    mMap.moveCamera(camera);
+                }
             }
         });
 
     }
 
     public void setAlarmAreas(List<AlarmInfo> alarminfos) {
+        if (mMap == null || alarminfos == null || alarminfos.size() == 0) {
+            return;
+        }
+
         if (mOverlay != null) {
             mOverlay.remove();
-        }
-        if (alarminfos == null || alarminfos.size() == 0) {
-            return;
         }
 
         ArrayList<WeightedLatLng> infos = new ArrayList<WeightedLatLng>();

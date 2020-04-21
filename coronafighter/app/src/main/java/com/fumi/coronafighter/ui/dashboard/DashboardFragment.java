@@ -72,32 +72,32 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
 
         try {
             mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+            mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
+                @Override
+                public boolean onMyLocationButtonClick() {
+                    FireStore.refreshAlertAreas(FireStore.currentLocation);
+                    return false;
+                }
+            });
+
+            mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
+                @Override
+                public void onMyLocationClick(@NonNull Location location) {
+                    FireStore.refreshAlertAreas(location);
+                }
+            });
+
+            mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                @Override
+                public void onMapClick(LatLng latLng) {
+                    setHeatMap(FireStore.mAlertAreas);
+                }
+            });
         } catch (Throwable t) {
             Log.i(TAG, t.getMessage(), t);
         }
-
-        mMap.getUiSettings().setMyLocationButtonEnabled(true);
-        mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
-            @Override
-            public boolean onMyLocationButtonClick() {
-                FireStore.refreshAlertAreas(FireStore.currentLocation);
-                return false;
-            }
-        });
-
-        mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
-            @Override
-            public void onMyLocationClick(@NonNull Location location) {
-                FireStore.refreshAlertAreas(location);
-            }
-        });
-
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng latLng) {
-                setHeatMap(FireStore.mAlertAreas);
-            }
-        });
 
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
             @Override

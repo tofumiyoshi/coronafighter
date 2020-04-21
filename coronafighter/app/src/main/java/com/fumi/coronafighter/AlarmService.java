@@ -253,6 +253,12 @@ public class AlarmService extends Service {
 
                                         if (ts.compareTo(timestamp) > 0) {
                                             res.add(info);
+
+                                            if (res.size() % 100 == 0) {
+                                                CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+                                                app.setAlarmAreas(res);
+                                            }
+
                                             Log.d(TAG, "add to alarm areas:" + info.getLocCode());
                                             break;
                                         }
