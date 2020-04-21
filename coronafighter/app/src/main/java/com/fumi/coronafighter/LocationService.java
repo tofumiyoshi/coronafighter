@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LocationService extends Service {
+    private static final String TAG = "LocationService";
 
     private LocationManager locationManager;
     private Context context;
@@ -180,13 +181,13 @@ public class LocationService extends Service {
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Log.d("firebase-store", "DocumentSnapshot successfully written!");
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        Log.w("firebase-store", "Error writing document", e);
+                        Log.w(TAG, "Error writing document", e);
                     }
                 });
     }
