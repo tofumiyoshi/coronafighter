@@ -91,7 +91,7 @@ public class LocationService extends Service {
 
         int requestCode = 0;
         String channelId = "default";
-        String title = context.getString(R.string.title_activity_maps);
+        String title = context.getString(R.string.title_activity_main);
 
         PendingIntent pendingIntent =
                 PendingIntent.getActivity(context, requestCode,

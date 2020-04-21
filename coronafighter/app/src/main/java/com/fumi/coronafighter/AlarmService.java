@@ -62,7 +62,7 @@ public class AlarmService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         int requestCode = 1;
         String channelId = "default";
-        String title = context.getString(R.string.title_activity_maps);
+        String title = context.getString(R.string.title_activity_main);
 
         PendingIntent pendingIntent =
                 PendingIntent.getActivity(context, requestCode,

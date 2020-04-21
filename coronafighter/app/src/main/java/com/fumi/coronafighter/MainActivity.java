@@ -131,7 +131,12 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
 
-        initAds();
+        try {
+            initAds();
+        } catch (Throwable t) {
+            Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
+            Log.i(TAG, t.getMessage(), t);
+        }
     }
 
     private void initAds() {

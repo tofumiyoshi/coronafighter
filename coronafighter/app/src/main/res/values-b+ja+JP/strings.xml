@@ -1,6 +1,5 @@
 <resources>
-    <string name="title_activity_maps">コロナ友助</string>
-
+    <string name="app_name">コロナ友助</string>
     <string name="logout">ログアウト</string>
     <string name="trace_position_start">追跡開始</string>
     <string name="trace_position_stop">追跡停止</string>

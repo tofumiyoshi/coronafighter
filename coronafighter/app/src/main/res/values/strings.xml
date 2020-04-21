@@ -1,6 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">CoronaMutualAssistance</string>
-    <string name="title_activity_maps">CoronaMutualAssistance</string>
+    <string name="app_name">CoronaMutualAssistance</string>
     <string name="logout">Logout</string>
     <string name="trace_position_start">Trace Position Start</string>
     <string name="trace_position_stop">Trace Position Stop</string>
