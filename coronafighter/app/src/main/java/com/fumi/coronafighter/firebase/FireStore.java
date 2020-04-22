@@ -77,6 +77,10 @@ public class FireStore {
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
         mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
 
+        addAlertListener();
+    }
+
+    private static void addAlertListener() {
         mListenerAlert = mFirebaseFirestore.collection("corona-infos")
                 .whereEqualTo(FieldPath.documentId(),"update-info")
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
@@ -108,7 +112,9 @@ public class FireStore {
                             }
                         } catch (Throwable t) {
                             Log.i(TAG, t.getMessage(), t);
-                            Toast.makeText(context, t.getMessage(), Toast.LENGTH_LONG).show();
+                            if (mContext != null) {
+                                Toast.makeText(mContext, t.getMessage(), Toast.LENGTH_LONG).show();
+                            }
                         }
                     }
                 });
@@ -145,6 +151,8 @@ public class FireStore {
                 .collection("sub-areas")
                 .document(locCode2);
         batch.set(dr2, info, SetOptions.merge());
+
+        Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
     }
 
     public static void removeNewCoronavirusInfo(final FirebaseUser currentUser, final String locCode) throws ExecutionException, InterruptedException {
@@ -178,7 +186,7 @@ public class FireStore {
         QuerySnapshot snap = Tasks.await(task);
         if (snap != null) {
             for (QueryDocumentSnapshot document : snap) {
-                Log.d(TAG, document.getId() + " => " + document.getData());
+                Log.d(TAG, "removeNewCoronavirusInfo: " + document.getId() + " => " + document.getData());
                 String locCode2 = document.getId();
 
                 if (locCode.length() > 6) {
@@ -187,6 +195,9 @@ public class FireStore {
                     }
                 }
 
+                if (!document.contains(field_key)) {
+                    continue;
+                }
                 Map<String, Object> info = new HashMap<>();
                 info.put(field_key, FieldValue.delete());
 
@@ -199,7 +210,8 @@ public class FireStore {
         }
     }
 
-    public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag) throws ExecutionException, InterruptedException {
+    public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int new_coronavirus_infection_flag)
+            throws ExecutionException, InterruptedException {
         mListenerAlert.remove();
 
         // Create a new user with a first and last name
@@ -237,6 +249,8 @@ public class FireStore {
                 String locCode = olc.getCode();
                 registNewCoronavirusInfo(batch, currentUser, locCode, timestamp2);
             }
+
+            reportNewCoronavirusInfectionComlete(batch);
             batch.commit();
 
         } else {
@@ -256,41 +270,24 @@ public class FireStore {
                 //Log.d("firebase-store", "locCode = " + locCode);
                 removeNewCoronavirusInfo(batch, currentUser, docId);
             }
+            reportNewCoronavirusInfectionComlete(batch);
+
             batch.commit();
         }
-
-        reportNewCoronavirusInfectionComlete(timestamp);
     }
 
-    private static void reportNewCoronavirusInfectionComlete(Timestamp timestamp) {
-        mListenerAlert = mFirebaseFirestore.collection("corona-infos")
-                .whereEqualTo(FieldPath.documentId(),"update-info")
-                .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                    @Override
-                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        if(currentLocation != null) {
-                            refreshAlertAreas(currentLocation);
-                        }
-                    }
-                });
+    private static void reportNewCoronavirusInfectionComlete(WriteBatch batch) {
+        Calendar cal = Calendar.getInstance();
+        final Date date1 = cal.getTime();
+        Timestamp timestamp = new Timestamp(date1);
+
+        addAlertListener();
 
         Map<String, Object> info2 = new HashMap<>();
         info2.put("timestamp", timestamp);
-        mFirebaseFirestore.collection("corona-infos")
-                .document("update-info")
-                .set(info2, SetOptions.merge())
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "DocumentSnapshot successfully written!");
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error writing document", e);
-                    }
-                });
+        DocumentReference doc = mFirebaseFirestore.collection("corona-infos")
+                .document("update-info");
+        batch.set(doc, info2, SetOptions.merge());
     }
 
     public static void refreshAlertAreas(Location location) {
@@ -353,7 +350,7 @@ public class FireStore {
                                             public void onComplete(@NonNull Task<QuerySnapshot> task) {
                                                 if (task.isSuccessful()) {
                                                     for (QueryDocumentSnapshot document : task.getResult()) {
-                                                        Log.d(TAG, document.getId() + " => " + document.getData());
+                                                        Log.d(TAG, "refreshAlartAreas: " + document.getId() + " => " + document.getData());
 
                                                         String locCode2 = document.getId();
                                                         String code = locCode1 + locCode2;
@@ -454,6 +451,7 @@ public class FireStore {
             for (String locCode : locCodes) {
                 removeNewCoronavirusInfo(batch, mAuth.getCurrentUser(), locCode);
             }
+            reportNewCoronavirusInfectionComlete(batch);
 
             batch.commit();
         } catch (ExecutionException e) {
@@ -497,7 +495,17 @@ public class FireStore {
         protected Void doInBackground(String... args) {
             try {
                 FirebaseAuth auth = FirebaseAuth.getInstance();
-                FireStore.reportNewCoronavirusInfection(auth.getCurrentUser(), Integer.parseInt(args[0]));
+                int flag = Integer.parseInt(args[0]);
+                if (flag == 0 || flag == 1) {
+                    FireStore.reportNewCoronavirusInfection(auth.getCurrentUser(), flag);
+                }
+                else if (flag == 5) {
+                    List<String> locCodes = new ArrayList<String>();
+                    for (int i=1; i<args.length; i++) {
+                        locCodes.add(args[i]);
+                    }
+                    removeInflectionInfo(locCodes);
+                }
             } catch (ExecutionException e) {
                 Log.i(TAG, e.getMessage(), e);
             } catch (InterruptedException e) {

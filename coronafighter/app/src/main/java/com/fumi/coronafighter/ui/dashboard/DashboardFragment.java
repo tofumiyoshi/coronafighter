@@ -97,51 +97,56 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                     setHeatMap(FireStore.mAlertAreas);
                 }
             });
+
+            mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+                @Override
+                public void onMapLongClick(final LatLng latLng) {
+                    final List<String> locCodes = FireStore.findExistInAlertAreasCode(latLng);
+                    if (locCodes == null || locCodes.size() == 0) {
+                        new AlertDialog.Builder(getActivity())
+                                .setTitle(R.string.infection_report)
+                                .setMessage(R.string.infection_report_confirm_msg)
+                                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                                                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                                        String locCode = olc.getCode();
+
+                                        Date date1 = Calendar.getInstance().getTime();
+                                        Timestamp timestamp = new Timestamp(date1);
+                                        FireStore.registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+                                    }
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    }
+                    else {
+                        new AlertDialog.Builder(getActivity())
+                                .setTitle(R.string.infection_area_delete)
+                                .setMessage(R.string.infection_area_delete_msg)
+                                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        Date date1 = Calendar.getInstance().getTime();
+                                        Timestamp timestamp = new Timestamp(date1);
+
+                                        String[] args = new String[locCodes.size() + 1];
+                                        args[0] = Integer.toString(5);
+                                        for (int i=0; i<locCodes.size(); i++) {
+                                            args[i+1] = locCodes.get(i);
+                                        }
+                                        new FireStore.InflectionReportTask().execute(args);
+                                    }
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    }
+                }
+            });
         } catch (Throwable t) {
             Log.i(TAG, t.getMessage(), t);
         }
-
-        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-            @Override
-            public void onMapLongClick(final LatLng latLng) {
-                final List<String> locCodes = FireStore.findExistInAlertAreasCode(latLng);
-                if (locCodes == null || locCodes.size() == 0) {
-                    new AlertDialog.Builder(getActivity())
-                            .setTitle(R.string.infection_report)
-                            .setMessage(R.string.infection_report_confirm_msg)
-                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
-                                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                                    String locCode = olc.getCode();
-
-                                    Date date1 = Calendar.getInstance().getTime();
-                                    Timestamp timestamp = new Timestamp(date1);
-                                    FireStore.registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
-                                }
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
-                }
-                else {
-                    new AlertDialog.Builder(getActivity())
-                            .setTitle(R.string.infection_area_delete)
-                            .setMessage(R.string.infection_area_delete_msg)
-                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    Date date1 = Calendar.getInstance().getTime();
-                                    Timestamp timestamp = new Timestamp(date1);
-
-                                    FireStore.removeInflectionInfo(locCodes);
-                                }
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
-                }
-            }
-        });
 
         Application app = getActivity().getApplication();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
