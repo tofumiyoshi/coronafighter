@@ -63,7 +63,7 @@ public class LocationService extends Service {
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         locationRequest.setInterval(SettingInfos.tracing_time_interval_second*1000);
         locationRequest.setSmallestDisplacement(SettingInfos.tracing_min_distance_meter);
 
