@@ -17,6 +17,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -28,6 +29,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -190,5 +192,13 @@ public class LocationService extends Service {
                         Log.w(TAG, "Error writing document", e);
                     }
                 });
+
+        if (FireStore.new_coronavirus_infection_flag == 1) {
+            OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
+                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+            final String locCode = olc.getCode();
+
+            FireStore.registNewCoronavirusInfo(currentUser, locCode);
+        }
     }
 }
