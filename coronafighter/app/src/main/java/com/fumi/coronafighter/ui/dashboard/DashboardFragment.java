@@ -173,12 +173,12 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
 
                 OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
                         Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                String locCode = olc.getCode();
+                final String locCode = olc.getCode();
 
                 if (FireStore.new_coronavirus_infection_flag == 1) {
                     Date date1 = Calendar.getInstance().getTime();
-                    Timestamp timestamp = new Timestamp(date1);
-                    FireStore.registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+
+                    new FireStore.InflectionReportTask().execute(Integer.toBinaryString(6), locCode);
                 }
 
                 if (FireStore.currentLocation == null
