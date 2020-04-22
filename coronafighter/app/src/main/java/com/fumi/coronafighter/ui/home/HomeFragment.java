@@ -23,12 +23,6 @@ public class HomeFragment extends Fragment {
         TextView textView = root.findViewById(R.id.text_home);
         textView.setText(getResources().getString(R.string.home_msg));
 
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        if (auth != null && auth.getCurrentUser() != null) {
-            TextView textViewMail = root.findViewById(R.id.textViewMail);
-            textViewMail.setText(auth.getCurrentUser().getEmail());
-        }
-
         return root;
     }
 }

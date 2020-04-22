@@ -17,14 +17,6 @@ import android.widget.Toast;
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.IdpResponse;
 import com.fumi.coronafighter.firebase.FireStore;
-import com.google.android.gms.ads.AdListener;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.MobileAds;
-import com.google.android.gms.ads.initialization.AdapterStatus;
-import com.google.android.gms.ads.initialization.InitializationStatus;
-import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
-import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -62,7 +54,6 @@ public class MainActivity extends AppCompatActivity
         NavController.OnDestinationChangedListener {
     private static final String TAG = "MainActivity";
 
-    private AdView mAdView;
     private FirebaseAuth mAuth;
 
     private FirebaseFirestore mFirebaseFirestore;
@@ -137,73 +128,6 @@ public class MainActivity extends AppCompatActivity
                         }
                     }
                 });
-
-        try {
-            initAds();
-        } catch (Throwable t) {
-            Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
-            Log.i(TAG, t.getMessage(), t);
-        }
-    }
-
-    private void initAds() {
-        MobileAds.initialize(this, new OnInitializationCompleteListener() {
-            @Override
-            public void onInitializationComplete(InitializationStatus initializationStatus) {
-                Log.i(TAG, "MobileAds initialize completed.");
-
-                Iterator i = initializationStatus.getAdapterStatusMap().keySet().iterator();
-                while (i.hasNext()){
-                    String key = (String)i.next();
-                    AdapterStatus status = initializationStatus.getAdapterStatusMap().get(key);
-
-                    Log.i(TAG, key + "=" + status.getInitializationState().name());
-
-                    if (key.equals("com.google.android.gms.ads.MobileAds")) {
-                        String msg = "com.google.android.gms.ads.MobileAds: " + status.getInitializationState().name();
-                        Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-                    }
-                }
-            }
-        });
-
-
-        mAdView = findViewById(R.id.adView);
-        mAdView.setAdListener(new AdListener(){
-            @Override
-            public void onAdLoaded() {
-                // Code to be executed when an ad finishes loading.
-                //Toast.makeText(MapsActivity.this, "AdLoaded.", Toast.LENGTH_LONG).show();
-            }
-
-            @Override
-            public void onAdFailedToLoad(int errorCode) {
-                // Code to be executed when an ad request fails.
-                //Toast.makeText(MapsActivity.this, "AdFailedToLoad. erroeCode =" + Integer.toString(errorCode), Toast.LENGTH_LONG).show();
-
-                if (errorCode == AdRequest.ERROR_CODE_INTERNAL_ERROR) {
-                    Toast.makeText(MainActivity.this, "内部エラー", Toast.LENGTH_LONG).show();
-                }
-                else if (errorCode == AdRequest.ERROR_CODE_INVALID_REQUEST) {
-                    Toast.makeText(MainActivity.this, "広告リクエスト無効", Toast.LENGTH_LONG).show();
-                }
-                else if (errorCode == AdRequest.ERROR_CODE_NETWORK_ERROR) {
-                    Toast.makeText(MainActivity.this, "ネットワーク接続エラー", Toast.LENGTH_LONG).show();
-                }
-                else if (errorCode == AdRequest.ERROR_CODE_NO_FILL) {
-                    Toast.makeText(MainActivity.this, "広告枠不足", Toast.LENGTH_LONG).show();
-                }
-            }
-
-            @Override
-            public void onAdClosed() {
-                // Code to be executed when the user is about to return
-                // to the app after tapping on an ad.
-                Toast.makeText(MainActivity.this, "AdClosed.", Toast.LENGTH_LONG).show();
-            }
-        });
-        AdRequest adRequest = new AdRequest.Builder().build();
-        mAdView.loadAd(adRequest);
     }
 
     public void createSignInIntent() {

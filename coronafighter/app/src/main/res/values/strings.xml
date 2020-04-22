@@ -15,8 +15,13 @@
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dash Board</string>
     <string name="title_notifications">Notifications</string>
-    <string name="home_msg">Visualize the infected area with a hit map. \ n
-        Infection alert area is displayed on the dashboard. \ n
-        The notification is the information on the passage of infection extracted from the past movement history data.</string>
+    <string name="home_msg">
+        Visualize the infected area with a hit map. \n
+        ■ Display the infection map on the dashboard. \n
+        Tracking personal movement history information, if corona is infected, the infected person will reflect it on the infection map by self-report. This will help healthy people avoid the area. \n
+        ■ Notice \n
+        Healthy people can grasp the degree of risk to some extent by comparing the past movement history information with the infection map. Change your daily behavior to prevent the spread of infection. \n
+        ■ I think there are problems such as personal information and rumors, but I believe that there is a good way. \n
+    </string>
 
 </resources>
