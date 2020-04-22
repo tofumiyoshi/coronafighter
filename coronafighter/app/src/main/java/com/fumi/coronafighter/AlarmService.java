@@ -175,6 +175,10 @@ public class AlarmService extends Service {
                 QuerySnapshot snapshot = Tasks.await(task);
                 if (snapshot != null) {
                     for(DocumentSnapshot doc: snapshot.getDocuments()){
+                        if (!doc.contains("latitude")) {
+                            continue;
+                        }
+
                         double latitude = doc.getDouble("latitude");
                         double longitude = doc.getDouble("longitude");
 
