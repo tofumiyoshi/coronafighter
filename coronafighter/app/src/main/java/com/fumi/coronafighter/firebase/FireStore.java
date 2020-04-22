@@ -91,6 +91,7 @@ public class FireStore {
                         }
                         try {
                             if(currentLocation != null) {
+                                refreshAlarmAreasTime = null;
                                 refreshAlertAreas(currentLocation);
                             }
 
@@ -120,12 +121,27 @@ public class FireStore {
                 });
     }
 
+    public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode) {
+        Date date1 = Calendar.getInstance().getTime();
+        Timestamp timestamp = new Timestamp(date1);
+
+        registNewCoronavirusInfo(currentUser, locCode, timestamp);
+    }
     public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode, Timestamp timestamp) {
         WriteBatch batch = mFirebaseFirestore.batch();
 
-        registNewCoronavirusInfo(batch, currentUser, locCode, timestamp);
+        try {
+            registNewCoronavirusInfo(batch, currentUser, locCode, timestamp);
 
-        batch.commit();
+            Task<Void> task = batch.commit();
+            Tasks.await(task);
+        } catch (ExecutionException e) {
+            Log.d(TAG, e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Log.d(TAG, e.getMessage(), e);
+        }
+
+        reportNewCoronavirusInfectionComlete();
     }
 
     public static void registNewCoronavirusInfo(WriteBatch batch, FirebaseUser currentUser, String locCode, Timestamp timestamp) {
@@ -185,9 +201,15 @@ public class FireStore {
                 .get();
         QuerySnapshot snap = Tasks.await(task);
         if (snap != null) {
+            List<String> procssed = new ArrayList<String>();
             for (QueryDocumentSnapshot document : snap) {
-                Log.d(TAG, "removeNewCoronavirusInfo: " + document.getId() + " => " + document.getData());
                 String locCode2 = document.getId();
+
+                if (procssed.contains(locCode2)) {
+                    continue;
+                }
+                procssed.add(locCode2);
+                Log.d(TAG, "removeNewCoronavirusInfo: " + locCode + " => " + document.getData());
 
                 if (locCode.length() > 6) {
                     if (!locCode2.equals(locCode.substring(6))) {
@@ -205,7 +227,7 @@ public class FireStore {
                         .document(locCode.substring(0, 6))
                         .collection("sub-areas")
                         .document(locCode2);
-                batch.update(doc, info);
+                batch.set(doc, info, SetOptions.merge());
             }
         }
     }
@@ -249,9 +271,10 @@ public class FireStore {
                 String locCode = olc.getCode();
                 registNewCoronavirusInfo(batch, currentUser, locCode, timestamp2);
             }
+            Task<Void> task3 = batch.commit();
+            Tasks.await(task3);
 
-            reportNewCoronavirusInfectionComlete(batch);
-            batch.commit();
+            reportNewCoronavirusInfectionComlete();
 
         } else {
             Task<QuerySnapshot> task2 = mFirebaseFirestore
@@ -270,13 +293,14 @@ public class FireStore {
                 //Log.d("firebase-store", "locCode = " + locCode);
                 removeNewCoronavirusInfo(batch, currentUser, docId);
             }
-            reportNewCoronavirusInfectionComlete(batch);
+            Task<Void> task3 = batch.commit();
+            Tasks.await(task3);
 
-            batch.commit();
+            reportNewCoronavirusInfectionComlete();
         }
     }
 
-    private static void reportNewCoronavirusInfectionComlete(WriteBatch batch) {
+    private static void reportNewCoronavirusInfectionComlete() {
         Calendar cal = Calendar.getInstance();
         final Date date1 = cal.getTime();
         Timestamp timestamp = new Timestamp(date1);
@@ -287,7 +311,7 @@ public class FireStore {
         info2.put("timestamp", timestamp);
         DocumentReference doc = mFirebaseFirestore.collection("corona-infos")
                 .document("update-info");
-        batch.set(doc, info2, SetOptions.merge());
+        doc.update(info2);
     }
 
     public static void refreshAlertAreas(Location location) {
@@ -308,11 +332,12 @@ public class FireStore {
     public static void refreshAlartAreas(ArrayList<String> locCodes) {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
-        Date now = Calendar.getInstance().getTime();
+        Date now = cal.getTime();
 
         if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(now)) {
             return;
         }
+        refreshAlarmAreasTime = Calendar.getInstance().getTime();
 
         mAlertAreas.clear();
         // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
@@ -356,7 +381,11 @@ public class FireStore {
                                                         String code = locCode1 + locCode2;
 
                                                         Map<String, Object> data = document.getData();
-                                                        addAlertAreas(code, data, mAlertAreas);
+                                                        if (data.keySet().size() > 0) {
+                                                            addAlertAreas(code, data, mAlertAreas);
+                                                        } else {
+                                                            document.getReference().delete();
+                                                        }
                                                     }
 
                                                     mViewModel.selectAlertAreas(mAlertAreas);
@@ -436,7 +465,7 @@ public class FireStore {
                     Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
             String code2 = olc2.getCode();
 
-            if (code2.startsWith(code.substring(0, 8))) {
+            if (code2.startsWith(code.substring(0, 8)) && !res.contains(code2)) {
                 res.add(code2);
             }
         }
@@ -451,9 +480,10 @@ public class FireStore {
             for (String locCode : locCodes) {
                 removeNewCoronavirusInfo(batch, mAuth.getCurrentUser(), locCode);
             }
-            reportNewCoronavirusInfectionComlete(batch);
+            Task<Void> task = batch.commit();
+            Tasks.await(task);
 
-            batch.commit();
+            reportNewCoronavirusInfectionComlete();
         } catch (ExecutionException e) {
             Log.d(TAG, e.getMessage(), e);
         } catch (InterruptedException e) {
@@ -505,6 +535,9 @@ public class FireStore {
                         locCodes.add(args[i]);
                     }
                     removeInflectionInfo(locCodes);
+                }
+                else if (flag == 6) {
+                    registNewCoronavirusInfo(auth.getCurrentUser(), args[1]);
                 }
             } catch (ExecutionException e) {
                 Log.i(TAG, e.getMessage(), e);

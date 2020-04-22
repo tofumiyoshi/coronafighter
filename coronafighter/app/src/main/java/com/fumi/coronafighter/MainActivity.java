@@ -345,6 +345,7 @@ public class MainActivity extends AppCompatActivity
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
+                                FireStore.refreshAlarmAreasTime = null;
                                 new FireStore.InflectionReportTask().execute(Integer.toString(1));
                             }
                         })
@@ -353,10 +354,12 @@ public class MainActivity extends AppCompatActivity
 
                 break;
             case R.id.infection_report_cancel:
+                FireStore.refreshAlarmAreasTime = null;
                 new FireStore.InflectionReportTask().execute(Integer.toString(0));
                 break;
 
             case R.id.refresh_alarm_areas:
+                FireStore.refreshAlarmAreasTime = null;
                 FireStore.refreshAlertAreas(FireStore.currentLocation);
                 break;
         }

@@ -79,6 +79,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
             mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
                 @Override
                 public boolean onMyLocationButtonClick() {
+                    FireStore.refreshAlarmAreasTime = null;
                     FireStore.refreshAlertAreas(FireStore.currentLocation);
                     return false;
                 }
@@ -113,9 +114,8 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                                                 Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                                         String locCode = olc.getCode();
 
-                                        Date date1 = Calendar.getInstance().getTime();
-                                        Timestamp timestamp = new Timestamp(date1);
-                                        FireStore.registNewCoronavirusInfo(mAuth.getCurrentUser(), locCode, timestamp);
+                                        FireStore.refreshAlarmAreasTime = null;
+                                        new FireStore.InflectionReportTask().execute(Integer.toString(6), locCode);
                                     }
                                 })
                                 .setNegativeButton("Cancel", null)
@@ -136,6 +136,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                                         for (int i=0; i<locCodes.size(); i++) {
                                             args[i+1] = locCodes.get(i);
                                         }
+                                        FireStore.refreshAlarmAreasTime = null;
                                         new FireStore.InflectionReportTask().execute(args);
                                     }
                                 })
