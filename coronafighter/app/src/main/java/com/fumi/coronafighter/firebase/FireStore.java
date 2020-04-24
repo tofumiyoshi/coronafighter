@@ -313,6 +313,20 @@ public class FireStore {
                 .document("update-info");
         doc.update(info2);
     }
+    public static void refreshAlertAreas(LatLng latLng) {
+        if (latLng == null) {
+            return;
+        }
+
+        ArrayList<String> locCodes = new ArrayList<String>();
+
+        OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+        String locCode = olc.getCode();
+        locCodes.add(locCode);
+
+        refreshAlartAreas(locCodes);
+    }
 
     public static void refreshAlertAreas(Location location) {
         if (location == null) {

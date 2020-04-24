@@ -95,7 +95,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
             mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
                 public void onMapClick(LatLng latLng) {
-                    setHeatMap(FireStore.mAlertAreas);
+                    FireStore.refreshAlertAreas(latLng);
                 }
             });
 
