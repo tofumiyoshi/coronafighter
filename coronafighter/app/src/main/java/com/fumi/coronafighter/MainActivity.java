@@ -284,7 +284,7 @@ public class MainActivity extends AppCompatActivity
 
             case R.id.refresh_alarm_areas:
                 FireStore.refreshAlarmAreasTime = null;
-                FireStore.refreshAlertAreas(FireStore.currentLocation);
+                FireStore.refreshAlertAreas();
                 break;
         }
         return false;

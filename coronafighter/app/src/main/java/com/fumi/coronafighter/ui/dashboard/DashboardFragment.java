@@ -76,26 +76,10 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
-            mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
-                @Override
-                public boolean onMyLocationButtonClick() {
-                    FireStore.refreshAlarmAreasTime = null;
-                    FireStore.refreshAlertAreas(FireStore.currentLocation);
-                    return false;
-                }
-            });
-
-            mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
-                @Override
-                public void onMyLocationClick(@NonNull Location location) {
-                    FireStore.refreshAlertAreas(location);
-                }
-            });
-
             mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
                 public void onMapClick(LatLng latLng) {
-                    FireStore.refreshAlertAreas(latLng);
+                    FireStore.refreshAlertAreas();
                 }
             });
 
@@ -171,12 +155,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                 // カメラの位置に移動
                 mMap.moveCamera(camera);
 
-                if (FireStore.currentLocation == null
-                        || FireStore.currentLocation.distanceTo(location) > SettingInfos.refresh_alarm_distance_min_meter) {
-
-                    FireStore.refreshAlertAreas(location);
-                    FireStore.currentLocation = location;
-                }
+                FireStore.currentLocation = location;
             }
         });
 

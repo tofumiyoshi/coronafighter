@@ -242,35 +242,20 @@ public class AlarmService extends Service {
                             continue;
                         }
 
-                        final String locCode1 = docId;
                         for (final AlarmInfo info : locList) {
-                            if (info.getLocCode().startsWith(locCode1)) {
-                                final String locCode2 = info.getLocCode().substring(6);
-                                Task<DocumentSnapshot> task2 = mFirebaseFirestore.collection("corona-infos")
-                                        .document(locCode1)
-                                        .collection("sub-areas")
-                                        .document(locCode2)
-                                        .get();
+                            if (docId.equals(info.getLocCode())) {
+                                Timestamp ts = doc.getTimestamp("timestamp");
 
-                                DocumentSnapshot documentSnapshot = Tasks.await(task2);
-                                if (documentSnapshot != null && documentSnapshot.getData() != null) {
-                                    Iterator<String> i = documentSnapshot.getData().keySet().iterator();
-                                    while(i.hasNext()) {
-                                        String key = i.next();
-                                        Timestamp ts = documentSnapshot.getTimestamp(key);
+                                if (ts.compareTo(timestamp) > 0) {
+                                    res.add(info);
 
-                                        if (ts.compareTo(timestamp) > 0) {
-                                            res.add(info);
-
-                                            if (res.size() % 100 == 0) {
-                                                CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                                                app.setAlarmAreas(res);
-                                            }
-
-                                            Log.d(TAG, "add to alarm areas:" + info.getLocCode());
-                                            break;
-                                        }
+                                    if (res.size() % 100 == 0) {
+                                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+                                        app.setAlarmAreas(res);
                                     }
+
+                                    Log.d(TAG, "add to alarm areas:" + info.getLocCode());
+                                    break;
                                 }
                             }
                         }

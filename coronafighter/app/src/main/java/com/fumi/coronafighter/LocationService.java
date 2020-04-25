@@ -167,6 +167,10 @@ public class LocationService extends Service {
     }
 
     private void traceUserInFireStore(Location location, FirebaseUser currentUser) {
+        OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
+                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+        final String locCode = olc.getCode();
+
         // Create a new user with a first and last name
         Map<String, Object> activityInfo = new HashMap<>();
         Date date1 = Calendar.getInstance().getTime();
@@ -175,6 +179,7 @@ public class LocationService extends Service {
         activityInfo.put("timestamp", timestamp);
         activityInfo.put("latitude", location.getLatitude());
         activityInfo.put("longitude", location.getLongitude());
+        activityInfo.put("locationcode", locCode);
 
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection(currentUser.getEmail())
@@ -194,10 +199,6 @@ public class LocationService extends Service {
                 });
 
         if (FireStore.new_coronavirus_infection_flag == 1) {
-            OpenLocationCode olc = new OpenLocationCode(location.getLatitude(), location.getLongitude(),
-                    Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-            final String locCode = olc.getCode();
-
             FireStore.registNewCoronavirusInfo(currentUser, locCode);
         }
     }
