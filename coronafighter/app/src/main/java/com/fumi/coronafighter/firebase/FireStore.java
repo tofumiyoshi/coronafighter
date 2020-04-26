@@ -59,7 +59,7 @@ public class FireStore {
     private static ListenerRegistration mListenerAlert;
     public static int infection_flag = 0;
     public static Location currentLocation;
-    public static Collection<WeightedLatLng> mAlertAreas = new ArrayList<WeightedLatLng>();
+    public static Collection<WeightedLatLng> mInflectionAreas = new ArrayList<WeightedLatLng>();
     public static Date refreshAlarmAreasTime = null;
 
     public static void init(final Context context) {
@@ -203,12 +203,12 @@ public class FireStore {
                     continue;
                 }
                 processed.add(docpath);
-                Log.d(TAG, "removeNewCoronavirusInfo: " + docpath + " => " + document.getData());
 
                 if (!docpath.contains(locCode) || !docpath.contains(currentUser.getEmail())) {
                     continue;
                 }
 
+                Log.d(TAG, "removeNewCoronavirusInfo: " + docpath + " => " + document.getData());
                 batch.delete(document.getReference());
             }
         }
@@ -240,21 +240,18 @@ public class FireStore {
         }
         refreshAlarmAreasTime = Calendar.getInstance().getTime();
 
-        mAlertAreas.clear();
+        mInflectionAreas.clear();
         // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
         // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
         // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
         // +以降のJ88は建物コード（14×14m）を意味しています。
-        mViewModel.selectAlertAreas(mAlertAreas);
+        mViewModel.selectAlertAreas(mInflectionAreas);
 
         // 警報基準
         // 日時：　過去７日間
         // エリア：　PQが都市コード（5×5km）
-        Calendar cal2 = Calendar.getInstance();
-        cal2.add(Calendar.DAY_OF_YEAR, -7);
-        final Date date1 = cal2.getTime();
-
         mFirebaseFirestore.collection("corona-infos")
+                .whereGreaterThan("density", 0)
                 .get()
                 .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
@@ -263,22 +260,34 @@ public class FireStore {
                             for (QueryDocumentSnapshot document : task.getResult()) {
                                 final String locCode = document.getId();
 
-                                document.getReference()
-                                        .collection("users")
-                                        .get()
-                                        .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                                            @Override
-                                            public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                                                if (task.isSuccessful()) {
-                                                    addAlartAreas(task, date1, locCode);
+                                int cnt = document.getLong("density").intValue();
+                                if (cnt <= 0) {
+                                    continue;
+                                }
+                                OpenLocationCode openLocationCode = new OpenLocationCode(locCode);
+                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+                                double intensity = 0.0;
+                                if (cnt >= SettingInfos.infection_saturation_cnt_max) {
+                                    intensity = 1.0;
+                                }
+                                else if (cnt <= SettingInfos.infection_saturation_cnt_min) {
+                                    intensity = 0.0;
+                                }
+                                else {
+                                    intensity = ((double) cnt - SettingInfos.infection_saturation_cnt_min)/
+                                            (SettingInfos.infection_saturation_cnt_max- SettingInfos.infection_saturation_cnt_min);
+                                }
+                                if (intensity <= 0.0) {
+                                    continue;
+                                }
+                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
 
-                                                    mViewModel.selectAlertAreas(mAlertAreas);
-                                                } else {
-                                                    Log.d(TAG, "Error getting documents: ", task.getException());
-                                                }
-                                            }
-                                        });
+                                Log.d(TAG, "add to inflected areas: " + locCode + ", cnt:" + cnt);
+                                mInflectionAreas.add(value);
                             }
+
+                            mViewModel.selectAlertAreas(mInflectionAreas);
                         }
                         else {
                             Log.d(TAG, "Error getting documents: ", task.getException());
@@ -287,47 +296,8 @@ public class FireStore {
                 });
     }
 
-    private static boolean addAlartAreas(@NonNull Task<QuerySnapshot> task, Date date1, String locCode) {
-        int cnt = 0;
-        for (QueryDocumentSnapshot document : task.getResult()) {
-            Log.d(TAG, "refreshAlartAreas: " + document.getId() + " => " + document.getData());
-
-            Timestamp timestamp = (Timestamp)document.getTimestamp("timestamp");
-            if(timestamp.toDate().after(date1)) {
-                cnt++;
-            }
-            else {
-                document.getReference().delete();
-            }
-        }
-
-        if (cnt == 0) {
-            return true;
-        }
-        OpenLocationCode openLocationCode = new OpenLocationCode(locCode);
-        OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
-        LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
-        double intensity = 0.0;
-        if (cnt >= SettingInfos.infection_saturation_cnt_max) {
-            intensity = 1.0;
-        }
-        else if (cnt <= SettingInfos.infection_saturation_cnt_min) {
-            intensity = 0.0;
-        }
-        else {
-            intensity = ((double) cnt - SettingInfos.infection_saturation_cnt_min)/
-                    (SettingInfos.infection_saturation_cnt_max- SettingInfos.infection_saturation_cnt_min);
-        }
-        if (intensity <= 0.0) {
-            return true;
-        }
-        WeightedLatLng value = new WeightedLatLng(latlng, intensity);
-        mAlertAreas.add(value);
-        return false;
-    }
-
     public static List<String> findExistInAlertAreasCode(final LatLng latLng) {
-        if  (mAlertAreas == null || mAlertAreas.size() == 0) {
+        if  (mInflectionAreas == null || mInflectionAreas.size() == 0) {
             return null;
         }
 
@@ -338,7 +308,7 @@ public class FireStore {
         String code = olc.getCode();
 
         SphericalMercatorProjection sProjection = new SphericalMercatorProjection(1.0D);
-        for (WeightedLatLng item : mAlertAreas) {
+        for (WeightedLatLng item : mInflectionAreas) {
             LatLng latLng2 = sProjection.toLatLng(item.getPoint());
             OpenLocationCode olc2 = new OpenLocationCode(latLng2.latitude, latLng2.longitude,
                     Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);

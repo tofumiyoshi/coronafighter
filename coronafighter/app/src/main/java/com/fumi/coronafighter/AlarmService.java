@@ -25,6 +25,7 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.openlocationcode.OpenLocationCode;
@@ -168,24 +169,20 @@ public class AlarmService extends Service {
             FireStore.maintainace();
 
             Task<QuerySnapshot> task = mFirebaseFirestore
-                    .collection(user.getEmail())
+                    .collection("users")
+                    .document(user.getEmail())
+                    .collection("trace-infos")
                     .whereGreaterThan("timestamp", timestamp)
                     .get();
             try {
                 QuerySnapshot snapshot = Tasks.await(task);
                 if (snapshot != null) {
                     for(DocumentSnapshot doc: snapshot.getDocuments()){
-                        if (!doc.contains("latitude")) {
+                        if (!doc.contains("location")) {
                             continue;
                         }
 
-                        double latitude = doc.getDouble("latitude");
-                        double longitude = doc.getDouble("longitude");
-
-                        OpenLocationCode olc = new OpenLocationCode(latitude, longitude,
-                                Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
-                        String locCode = olc.getCode();
-
+                        String locCode = doc.getString("locationcode");
                         boolean flag = false;
                         for(int i=0; i<locList.size(); i++) {
                             AlarmInfo info = locList.get(i);
@@ -198,9 +195,9 @@ public class AlarmService extends Service {
 
                         if (!flag) {
                             AlarmInfo info = new AlarmInfo();
-                            OpenLocationCode.CodeArea area = olc.decode();
-                            info.setLatitude(area.getCenterLatitude());
-                            info.setLongitude(area.getCenterLongitude());
+                            GeoPoint location = doc.getGeoPoint("location");
+                            info.setLatitude(location.getLatitude());
+                            info.setLongitude(location.getLongitude());
                             info.setLocCode(locCode);
                             info.setCnt(1);
 
@@ -208,7 +205,7 @@ public class AlarmService extends Service {
                         }
                     }
 
-                    chkLoc4Alaram(locList, timestamp, res);
+                    chkLoc4Alaram(locList, res);
                 }
             } catch (ExecutionException e) {
                 Log.e(TAG, e.getMessage(), e);
@@ -229,7 +226,7 @@ public class AlarmService extends Service {
             app.setAlarmAreas(result);
         }
 
-        private void chkLoc4Alaram(final ArrayList<AlarmInfo> locList, final Timestamp timestamp, final ArrayList<AlarmInfo> res) {
+        private void chkLoc4Alaram(final ArrayList<AlarmInfo> locList, final ArrayList<AlarmInfo> res) {
             Task<QuerySnapshot> task = mFirebaseFirestore.collection("corona-infos")
                     .get();
             try {
@@ -244,21 +241,17 @@ public class AlarmService extends Service {
 
                         for (final AlarmInfo info : locList) {
                             if (docId.equals(info.getLocCode())) {
-                                Timestamp ts = doc.getTimestamp("timestamp");
-
-                                if (ts.compareTo(timestamp) > 0) {
-                                    res.add(info);
-
-                                    if (res.size() % 100 == 0) {
-                                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                                        app.setAlarmAreas(res);
-                                    }
-
-                                    Log.d(TAG, "add to alarm areas:" + info.getLocCode());
-                                    break;
+                                if (doc.getLong("density") > info.getCnt()) {
+                                    info.setCnt(doc.getLong("density").intValue());
                                 }
+                                res.add(info);
+                                Log.d(TAG, "add to alarm areas:" + info.getLocCode() + ", cnt:" + info.getCnt());
+                                break;
                             }
                         }
+
+                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+                        app.setAlarmAreas(res);
                     }
                 }
             } catch (ExecutionException e) {

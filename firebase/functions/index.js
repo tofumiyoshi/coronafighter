@@ -28,22 +28,28 @@ exports.addInflectionListener = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
-    .onCreate((snap, context) => {
+    .onCreate( async (snap, context) => {
         const inflectionRef = admin.firestore().collection('corona-infos').doc(context.params.locationcode);
 
-        return inflectionRef.set({
-            density: admin.firestore.FieldValue.increment(1)}, {merge: true});
+        await inflectionRef.set({
+                  density: admin.firestore.FieldValue.increment(1)}, {merge: true});
+
+        const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
+        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});
 });
 
 exports.delInflectionListener = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
-    .onDelete( (snap, context) => {
+    .onDelete( async (snap, context) => {
         const inflectionRef = admin.firestore().collection('corona-infos').doc(context.params.locationcode);
 
-        return inflectionRef.set({
+        await inflectionRef.set({
               density: admin.firestore.FieldValue.increment(-1)}, {merge: true});
+
+        const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
+        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});      
 });
 
 // ユーザーの感染報告された場合、位置履歴を感染エリアに追加する。
@@ -88,7 +94,8 @@ exports.userInflectionReportListener = functions
             }
         }
 
-        return null;
+        const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
+        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});      
 });
 
 function deleteUserInflectInfos(db, userid, batchSize) {
