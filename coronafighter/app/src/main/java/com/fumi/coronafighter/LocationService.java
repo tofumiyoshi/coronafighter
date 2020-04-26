@@ -29,6 +29,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.Calendar;
@@ -177,12 +178,14 @@ public class LocationService extends Service {
         Timestamp timestamp = new Timestamp(date1);
 
         activityInfo.put("timestamp", timestamp);
-        activityInfo.put("latitude", location.getLatitude());
-        activityInfo.put("longitude", location.getLongitude());
+        GeoPoint gp = new GeoPoint(location.getLatitude(), location.getLongitude());
+        activityInfo.put("location", gp);
         activityInfo.put("locationcode", locCode);
 
         // Add a new document with a generated ID;
-        mFirebaseFirestore.collection(currentUser.getEmail())
+        mFirebaseFirestore.collection("users")
+                .document(currentUser.getEmail())
+                .collection("trace-infos")
                 .document(Constants.DATE_FORMAT_4_NAME.format(timestamp.toDate()))
                 .set(activityInfo)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
@@ -198,8 +201,8 @@ public class LocationService extends Service {
                     }
                 });
 
-        if (FireStore.new_coronavirus_infection_flag == 1) {
-            FireStore.registNewCoronavirusInfo(currentUser, locCode);
-        }
+//        if (FireStore.new_coronavirus_infection_flag == 1) {
+//            FireStore.registNewCoronavirusInfo(currentUser, locCode);
+//        }
     }
 }

@@ -109,7 +109,7 @@ public class AlarmService extends Service {
 
     protected void startMoniting() {
         mListenerAlert = mFirebaseFirestore.collection("corona-infos")
-                .whereEqualTo(FieldPath.documentId(),"update-info")
+                .whereEqualTo(FieldPath.documentId(),"info")
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
@@ -238,7 +238,7 @@ public class AlarmService extends Service {
                     List<DocumentSnapshot> list = snapshot.getDocuments();
                     for(DocumentSnapshot doc: list){
                         String docId = doc.getId();
-                        if (docId.equals("update-info")) {
+                        if (docId.equals("info")) {
                             continue;
                         }
 

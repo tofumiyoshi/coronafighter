@@ -115,13 +115,15 @@ public class MainActivity extends AppCompatActivity
         startService(intent2);
 
         mFirebaseFirestore = FirebaseFirestore.getInstance();
-        mListenerStatus = mFirebaseFirestore.collection(mAuth.getCurrentUser().getEmail())
+        mListenerStatus = mFirebaseFirestore.collection("users")
+                .document(mAuth.getCurrentUser().getEmail())
+                .collection("infos")
                 .whereEqualTo(FieldPath.documentId(),"status")
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
-                            FireStore.new_coronavirus_infection_flag = document.getLong("new_coronavirus_infection_flag").intValue();
+                            FireStore.infection_flag = document.getLong("infection_flag").intValue();
 
                             invalidateOptionsMenu();
                             break;
@@ -223,7 +225,7 @@ public class MainActivity extends AppCompatActivity
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         int idCurrentDestination = navController.getCurrentDestination().getId();
         if (idCurrentDestination == R.id.navigation_dashboard) {
-            if (FireStore.new_coronavirus_infection_flag == 0) {
+            if (FireStore.infection_flag == 0) {
                 MenuItem item = menu.findItem(R.id.infection_report);
                 item.setEnabled(true);
 
