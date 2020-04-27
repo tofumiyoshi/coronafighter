@@ -108,7 +108,7 @@ public class FireStore {
                 mFirebaseFirestore.collection("corona-infos")
                 .document(locCode)
                 .collection("users")
-                .document(currentUser.getEmail());
+                .document(currentUser.getUid());
         batch.set(dr2, info, SetOptions.merge());
 
         Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
@@ -138,7 +138,7 @@ public class FireStore {
                 }
                 processed.add(docpath);
 
-                if (!docpath.contains(currentUser.getEmail())) {
+                if (!docpath.contains(currentUser.getUid())) {
                     continue;
                 }
 
@@ -163,7 +163,7 @@ public class FireStore {
                 }
                 processed.add(docpath);
 
-                if (!docpath.contains(locCode) || !docpath.contains(currentUser.getEmail())) {
+                if (!docpath.contains(locCode) || !docpath.contains(currentUser.getUid())) {
                     continue;
                 }
 
@@ -182,7 +182,7 @@ public class FireStore {
 
         // Add a new document with a generated ID;
         Task<Void> task = mFirebaseFirestore.collection("users")
-                .document(currentUser.getEmail())
+                .document(currentUser.getUid())
                 .collection("infos")
                 .document("status")
                 .set(activityInfo, SetOptions.merge());
@@ -307,7 +307,7 @@ public class FireStore {
         Date date1 = calendar.getTime();
 
         String docIdMin = Constants.DATE_FORMAT_4_NAME.format(date1);
-        final String mail = mAuth.getCurrentUser().getEmail();
+        final String mail = mAuth.getCurrentUser().getUid();
         mFirebaseFirestore.collection("users")
                 .document(mail)
                 .collection("trace-infos")

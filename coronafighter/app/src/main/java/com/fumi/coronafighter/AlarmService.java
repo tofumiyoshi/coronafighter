@@ -189,7 +189,7 @@ public class AlarmService extends Service {
 
             Task<QuerySnapshot> task = mFirebaseFirestore
                     .collection("users")
-                    .document(user.getEmail())
+                    .document(user.getUid())
                     .collection("trace-infos")
                     .whereGreaterThan("timestamp", timestamp)
                     .get();

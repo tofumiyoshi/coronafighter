@@ -8,11 +8,17 @@ exports.userTraceListener = functions
     .firestore
     .document('users/{userid}/trace-infos/{traceid}')
     .onCreate(async (snap, context) => {
-        const statusRef = admin.firestore().collection('users').doc(context.params.userid).collection('infos').doc("status");
+        const statusRef = admin.firestore().collection('users')
+                              .doc(context.params.userid)
+                              .collection('infos').doc("status");
 
         const status = await statusRef.get();
         if (status.data().infection_flag === 1) {
-            const inflectionRef = admin.firestore().collection('corona-infos').doc(snap.data().locationcode).collection('users').doc(context.params.userid);
+            const inflectionRef = admin.firestore().collection('corona-infos')
+                                      .doc(snap.data()
+                                      .locationcode)
+                                      .collection('users')
+                                      .doc(context.params.userid);
 
             return inflectionRef.set({
                 timestamp: snap.data().timestamp,
@@ -23,33 +29,48 @@ exports.userTraceListener = functions
         return null;
 });
 
-// 即時感染エリア更新時、感染密度を更新する。
+// 感染された方の位置履歴を即時感染エリアから削除する。
+exports.userTraceListener = functions
+    .region('asia-northeast1')
+    .firestore
+    .document('users/{userid}/trace-infos/{traceid}')
+    .onDelete(async (snap, context) => {
+        const inflectionRef = admin.firestore().collection('corona-infos')
+                                    .doc(snap.data().locationcode)
+                                    .collection('users')
+                                    .doc(context.params.userid);
+
+        return inflectionRef.delete({
+            timestamp: snap.data().timestamp,
+            userid: context.params.userid,
+        });
+});
+
+
+// 即時感染エリア作成時、感染密度を更新する。
 exports.addInflectionListener = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
     .onCreate( async (snap, context) => {
-        const inflectionRef = admin.firestore().collection('corona-infos').doc(context.params.locationcode);
+        const inflectionRef = admin.firestore().collection('corona-infos')
+                                  .doc(context.params.locationcode);
 
-        await inflectionRef.set({
+        return inflectionRef.set({
                   density: admin.firestore.FieldValue.increment(1)}, {merge: true});
-
-        const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
-        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});
 });
 
+// 即時感染エリア削除時、感染密度を更新する。
 exports.delInflectionListener = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
     .onDelete( async (snap, context) => {
-        const inflectionRef = admin.firestore().collection('corona-infos').doc(context.params.locationcode);
+        const inflectionRef = admin.firestore().collection('corona-infos')
+                                  .doc(context.params.locationcode);
 
-        await inflectionRef.set({
+        return inflectionRef.set({
               density: admin.firestore.FieldValue.increment(-1)}, {merge: true});
-
-        const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
-        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});      
 });
 
 // ユーザーの感染報告された場合、位置履歴を感染エリアに追加する。
@@ -67,8 +88,8 @@ exports.userInflectionReportListener = functions
             if (change.after.data().infection_flag === 1) {
                 console.info("create inflection infomation", "==>", context.params.userid);
 
-                const traceInfosRef = admin.firestore().collection('users').doc(context.params.userid).collection('trace-infos');
-                //const traceInfos = await traceInfosRef.where("timestamp", ">=", admin.firestore().Timestamp.fromDate(startdate)).get();
+                const traceInfosRef = admin.firestore().collection('users')
+                                          .doc(context.params.userid).collection('trace-infos');
                 const traceInfos = await traceInfosRef.get();
 
                 //console.log("traceInfos", '=>', traceInfos);
@@ -76,7 +97,10 @@ exports.userInflectionReportListener = functions
                 traceInfos.docs.forEach(doc => {
                     //console.log(doc.id, '=>', doc.data());
 
-                    const inflectionRef = admin.firestore().collection('corona-infos').doc(doc.data().locationcode).collection('users').doc(context.params.userid);
+                    const inflectionRef = admin.firestore().collection('corona-infos')
+                                              .doc(doc.data().locationcode)
+                                              .collection('users')
+                                              .doc(context.params.userid);
 
                     batch.set(inflectionRef, {
                         timestamp: doc.data().timestamp,
@@ -95,7 +119,9 @@ exports.userInflectionReportListener = functions
         }
 
         const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
-        return coronaInfoRef.set({timestamp: admin.firestore.FieldValue.serverTimestamp()}, {merge: true});      
+        return coronaInfoRef.set(
+                    {timestamp: admin.firestore.FieldValue.serverTimestamp()}, 
+                    {merge: true});      
 });
 
 function deleteUserInflectInfos(db, userid, batchSize) {

@@ -175,7 +175,7 @@ public class LocationService extends Service implements MyLocationManager.OnLoca
 
         // Add a new document with a generated ID;
         mFirebaseFirestore.collection("users")
-                .document(currentUser.getEmail())
+                .document(currentUser.getUid())
                 .collection("trace-infos")
                 .document(Constants.DATE_FORMAT_4_NAME.format(timestamp.toDate()))
                 .set(activityInfo)

@@ -20,6 +20,7 @@ import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -109,7 +110,7 @@ public class MainActivity extends AppCompatActivity
 
         mFirebaseFirestore = FirebaseFirestore.getInstance();
         mListenerStatus = mFirebaseFirestore.collection("users")
-                .document(mAuth.getCurrentUser().getEmail())
+                .document(mAuth.getCurrentUser().getUid())
                 .collection("infos")
                 .whereEqualTo(FieldPath.documentId(),"status")
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
@@ -133,13 +134,15 @@ public class MainActivity extends AppCompatActivity
         List<AuthUI.IdpConfig> providers = Arrays.asList(
                 new AuthUI.IdpConfig.EmailBuilder().build(),
                 new AuthUI.IdpConfig.PhoneBuilder().build(),
-                new AuthUI.IdpConfig.GoogleBuilder().build());
+                new AuthUI.IdpConfig.GoogleBuilder().build(),
+                new AuthUI.IdpConfig.AnonymousBuilder().build());
 
         // Create and launch sign-in intent
         startActivityForResult(
                 AuthUI.getInstance()
                         .createSignInIntentBuilder()
                         .setAvailableProviders(providers)
+                        .setIsSmartLockEnabled(true)
                         .build(),
                 RC_SIGN_IN);
     }
@@ -153,6 +156,8 @@ public class MainActivity extends AppCompatActivity
             if (resultCode == RESULT_OK) {
                 initialize();
                 return;
+            } else if (resultCode == RESULT_CANCELED) {
+                Toast.makeText(this, "Sign in cancelled.", Toast.LENGTH_LONG).show();
             } else {
                 // Sign in failed. If response is null the user canceled the
                 // sign-in flow using the back button. Otherwise check
