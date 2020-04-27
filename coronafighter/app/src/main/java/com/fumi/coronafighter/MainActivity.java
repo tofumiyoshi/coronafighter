@@ -59,13 +59,6 @@ public class MainActivity extends AppCompatActivity
     private FirebaseFirestore mFirebaseFirestore;
     private ListenerRegistration mListenerStatus;
 
-    /**
-     * Request code for location permission request.
-     *
-     * @see #onRequestPermissionsResult(int, String[], int[])
-     */
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
-
     private static final int RC_SIGN_IN = 123;
 
     @Override
@@ -91,7 +84,7 @@ public class MainActivity extends AppCompatActivity
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    LOCATION_PERMISSION_REQUEST_CODE);
+                    Constants.LOCATION_PERMISSION_REQUEST_CODE);
             return;
         }
 
@@ -186,7 +179,7 @@ public class MainActivity extends AppCompatActivity
     public void onRequestPermissionsResult(
             int requestCode, @NonNull String[]permissions, @NonNull int[] grantResults) {
 
-        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
+        if (requestCode != Constants.LOCATION_PERMISSION_REQUEST_CODE) {
             return;
         }
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)

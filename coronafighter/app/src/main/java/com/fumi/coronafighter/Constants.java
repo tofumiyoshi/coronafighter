@@ -10,4 +10,11 @@ public class Constants {
 
     public static final int OPEN_LOCATION_CODE_LENGTH_TO_GENERATE = 11;
     public static final int OPEN_LOCATION_CODE_LENGTH_TO_COMPARE = 6;
+
+    /**
+     * Request code for location permission request.
+     *
+     * @see #onRequestPermissionsResult(int, String[], int[])
+     */
+    public static final int LOCATION_PERMISSION_REQUEST_CODE = 1000;
 }

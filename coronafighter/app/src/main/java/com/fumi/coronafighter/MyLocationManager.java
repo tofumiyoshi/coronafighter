@@ -20,7 +20,6 @@ import com.google.android.gms.location.LocationServices;
 public class MyLocationManager extends LocationCallback {
     private static final String TAG = MyLocationManager.class.getName();
 
-    private static final int LOCATION_REQUEST_CODE = 1;
     private Context context;
     private FusedLocationProviderClient fusedLocationProviderClient;
     private OnLocationResultListener mListener;
@@ -48,7 +47,7 @@ public class MyLocationManager extends LocationCallback {
             Log.d(TAG, "Permission required.");
             ActivityCompat.requestPermissions((Activity) context, new String[]{
                     Manifest.permission.ACCESS_FINE_LOCATION,
-            }, LOCATION_REQUEST_CODE);
+            }, Constants.LOCATION_PERMISSION_REQUEST_CODE);
 
             return;
         }
