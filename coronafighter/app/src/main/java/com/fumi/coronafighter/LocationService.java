@@ -37,18 +37,16 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-public class LocationService extends Service {
+public class LocationService extends Service implements MyLocationManager.OnLocationResultListener{
     private static final String TAG = "LocationService";
 
-    private LocationManager locationManager;
     private Context context;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore mFirebaseFirestore;
 
-    private FusedLocationProviderClient mFusedLocationClient;
-    private LocationRequest locationRequest;
-    private LocationCallback locationCallback;
+    private MyLocationManager locationManager;
+
     private volatile Looper mTracingLooper;
 
     @Override
@@ -63,31 +61,6 @@ public class LocationService extends Service {
         HandlerThread thread = new HandlerThread(LocationService.class.getName());
         thread.start();
         mTracingLooper = thread.getLooper();
-
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-        locationRequest.setInterval(SettingInfos.tracing_time_interval_second*1000);
-        locationRequest.setSmallestDisplacement(SettingInfos.tracing_min_distance_meter);
-
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-
-                CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                for (Location location : locationResult.getLocations()) {
-                    if (location != null) {
-                        if (mAuth.getCurrentUser() != null) {
-                            traceUserInFireStore(location, mAuth.getCurrentUser());
-                        }
-                        app.setCurrentPosition(location);
-                    }
-                }
-            }
-        };
     }
 
     @Override
@@ -143,14 +116,14 @@ public class LocationService extends Service {
         StringBuilder strBuf = new StringBuilder();
         strBuf.append("startGPS\n");
 
-        locationRequest.setInterval(SettingInfos.tracing_time_interval_second * 1000);
-        locationRequest.setSmallestDisplacement(SettingInfos.tracing_min_distance_meter);
-
-        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mTracingLooper);
+        locationManager = new MyLocationManager(getApplicationContext(), this);
+        locationManager.startLocationUpdates();
     }
 
     private void stopGPS(){
-        mFusedLocationClient.removeLocationUpdates(locationCallback);
+        if (locationManager != null) {
+            locationManager.stopLocationUpdates();
+        }
 
         stopForeground(true);
     }
@@ -165,6 +138,24 @@ public class LocationService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    @Override
+    public void onLocationResult(LocationResult locationResult) {
+        if (locationResult == null) {
+            Log.e(TAG, "# No location data.");
+            return;
+        }
+
+        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
+        for (Location location : locationResult.getLocations()) {
+            if (location != null) {
+                if (mAuth.getCurrentUser() != null) {
+                    traceUserInFireStore(location, mAuth.getCurrentUser());
+                }
+                app.setCurrentPosition(location);
+            }
+        }
     }
 
     private void traceUserInFireStore(Location location, FirebaseUser currentUser) {
@@ -200,9 +191,5 @@ public class LocationService extends Service {
                         Log.w(TAG, "Error writing document", e);
                     }
                 });
-
-//        if (FireStore.new_coronavirus_infection_flag == 1) {
-//            FireStore.registNewCoronavirusInfo(currentUser, locCode);
-//        }
     }
 }

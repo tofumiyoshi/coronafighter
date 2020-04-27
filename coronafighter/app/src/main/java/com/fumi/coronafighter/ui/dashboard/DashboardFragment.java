@@ -98,7 +98,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                                                 Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
                                         String locCode = olc.getCode();
 
-                                        FireStore.refreshAlarmAreasTime = null;
+                                        FireStore.refreshInflectionAreasTime = null;
                                         new FireStore.InflectionReportTask().execute(Integer.toString(6), locCode);
                                     }
                                 })
@@ -120,7 +120,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                                         for (int i=0; i<locCodes.size(); i++) {
                                             args[i+1] = locCodes.get(i);
                                         }
-                                        FireStore.refreshAlarmAreasTime = null;
+                                        FireStore.refreshInflectionAreasTime = null;
                                         new FireStore.InflectionReportTask().execute(args);
                                     }
                                 })

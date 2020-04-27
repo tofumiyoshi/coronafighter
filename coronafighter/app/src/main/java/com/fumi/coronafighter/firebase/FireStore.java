@@ -60,7 +60,7 @@ public class FireStore {
     public static int infection_flag = 0;
     public static Location currentLocation;
     public static Collection<WeightedLatLng> mInflectionAreas = new ArrayList<WeightedLatLng>();
-    public static Date refreshAlarmAreasTime = null;
+    public static Date refreshInflectionAreasTime = null;
 
     public static void init(final Context context) {
         mFirebaseFirestore = FirebaseFirestore.getInstance();
@@ -71,47 +71,6 @@ public class FireStore {
         Application app = (Application)mContext.getApplicationContext();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
         mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
-
-        addAlertListener();
-    }
-
-    private static void addAlertListener() {
-        mListenerAlert = mFirebaseFirestore.collection("corona-infos")
-                .whereEqualTo(FieldPath.documentId(),"info")
-                .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                    @Override
-                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                        if (e != null) {
-                            return;
-                        }
-                        try {
-                            refreshAlarmAreasTime = null;
-                            refreshAlertAreas();
-
-                            for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                                SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
-                                SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
-
-                                SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
-                                SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
-
-                                SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
-
-                                SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
-
-                                SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
-
-                                SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
-                                SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
-                            }
-                        } catch (Throwable t) {
-                            Log.i(TAG, t.getMessage(), t);
-                            if (mContext != null) {
-                                Toast.makeText(mContext, t.getMessage(), Toast.LENGTH_LONG).show();
-                            }
-                        }
-                    }
-                });
     }
 
     public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode) {
@@ -235,10 +194,10 @@ public class FireStore {
         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
         Date now = cal.getTime();
 
-        if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(now)) {
+        if (refreshInflectionAreasTime != null && refreshInflectionAreasTime.after(now)) {
             return;
         }
-        refreshAlarmAreasTime = Calendar.getInstance().getTime();
+        refreshInflectionAreasTime = Calendar.getInstance().getTime();
 
         mInflectionAreas.clear();
         // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。

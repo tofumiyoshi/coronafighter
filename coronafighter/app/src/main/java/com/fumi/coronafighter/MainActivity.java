@@ -122,6 +122,10 @@ public class MainActivity extends AppCompatActivity
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        if (queryDocumentSnapshots == null) {
+                            Log.i(TAG, e.getMessage(), e);
+                            return;
+                        }
                         for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
                             FireStore.infection_flag = document.getLong("infection_flag").intValue();
 
@@ -271,7 +275,7 @@ public class MainActivity extends AppCompatActivity
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                FireStore.refreshAlarmAreasTime = null;
+                                FireStore.refreshInflectionAreasTime = null;
                                 new FireStore.InflectionReportTask().execute(Integer.toString(1));
                             }
                         })
@@ -280,12 +284,12 @@ public class MainActivity extends AppCompatActivity
 
                 break;
             case R.id.infection_report_cancel:
-                FireStore.refreshAlarmAreasTime = null;
+                FireStore.refreshInflectionAreasTime = null;
                 new FireStore.InflectionReportTask().execute(Integer.toString(0));
                 break;
 
             case R.id.refresh_alarm_areas:
-                FireStore.refreshAlarmAreasTime = null;
+                FireStore.refreshInflectionAreasTime = null;
                 FireStore.refreshAlertAreas();
                 break;
         }

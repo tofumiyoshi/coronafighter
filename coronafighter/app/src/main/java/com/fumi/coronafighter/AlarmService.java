@@ -115,7 +115,24 @@ public class AlarmService extends Service {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
                         if (e != null) {
+                            Log.e(TAG, e.getMessage(), e);
                             return;
+                        }
+                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                            SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
+                            SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
+
+                            SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
+                            SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
+
+                            SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
+
+                            SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
+
+                            SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
+
+                            SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
+                            SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
                         }
 
                         if (mTask.getStatus() == AsyncTask.Status.PENDING) {
@@ -130,6 +147,8 @@ public class AlarmService extends Service {
     }
 
     private void stopMoniting(){
+        mListenerAlert.remove();
+
         stopForeground(true);
     }
 
@@ -214,7 +233,6 @@ public class AlarmService extends Service {
             }
 
             Log.i(TAG, "Task finished.");
-
             return res;
         }
 
