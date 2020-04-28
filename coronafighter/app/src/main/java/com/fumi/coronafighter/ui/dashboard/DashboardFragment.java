@@ -56,12 +56,25 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
         View root = inflater.inflate(R.layout.fragment_dashboard, container, false);
 
         mAuth = FirebaseAuth.getInstance();
+
+        return root;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        return root;
+        refreshInflectionAreas(FireStore.currentLocation);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
     }
 
     /**
@@ -79,7 +92,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
             mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
                 public void onMapClick(LatLng latLng) {
-                    FireStore.refreshAlertAreas();
+                    FireStore.refreshInflectionAreas();
                 }
             });
 
@@ -141,21 +154,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
         mViewModel.getSelected().observe(this, new Observer<Location>() {
             @Override
             public void onChanged(final Location location) {
-                if (mMap == null) {
-                    return;
-                }
-
-                float zoom = mMap.getCameraPosition().zoom;
-                if (zoom < SettingInfos.map_min_zoom) {
-                    zoom = SettingInfos.map_default_zoom;
-                }
-
-                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
-                // カメラの位置に移動
-                mMap.moveCamera(camera);
-
-                FireStore.currentLocation = location;
+                refreshInflectionAreas(location);
             }
         });
 
@@ -169,6 +168,26 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
                 setHeatMap(alertAreas);
             }
         });
+    }
+
+    private void refreshInflectionAreas(Location location) {
+        if (mMap == null) {
+            return;
+        }
+
+        float zoom = mMap.getCameraPosition().zoom;
+        if (zoom < SettingInfos.map_min_zoom) {
+            zoom = SettingInfos.map_default_zoom;
+        }
+
+        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+        CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
+        // カメラの位置に移動
+        mMap.moveCamera(camera);
+
+        FireStore.currentLocation = location;
+
+        FireStore.refreshInflectionAreas();
     }
 
     public void setHeatMap(Collection list) {

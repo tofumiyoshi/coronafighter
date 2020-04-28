@@ -19,6 +19,7 @@ import com.fumi.coronafighter.AlarmInfo;
 import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.R;
 import com.fumi.coronafighter.SettingInfos;
+import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -58,6 +59,11 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
 
         return root;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
     }
 
     /**

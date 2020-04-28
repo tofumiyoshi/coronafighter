@@ -190,7 +190,7 @@ public class FireStore {
         Tasks.await(task);
     }
 
-    public static void refreshAlertAreas() {
+    public static void refreshInflectionAreas() {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
         Date now = cal.getTime();

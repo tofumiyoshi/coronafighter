@@ -203,6 +203,8 @@ public class MainActivity extends AppCompatActivity
                 .signOut(this)
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     public void onComplete(@NonNull Task<Void> task) {
+                        mListenerStatus.remove();
+
                         //Toast.makeText(getApplicationContext(), "Sign out completed.", Toast.LENGTH_SHORT).show();
                         finish();
                     }
@@ -247,7 +249,7 @@ public class MainActivity extends AppCompatActivity
             item.setEnabled(false);
             MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
             item2.setEnabled(false);
-            MenuItem item3 = menu.findItem(R.id.refresh_alarm_areas);
+            MenuItem item3 = menu.findItem(R.id.refresh_inflection_areas);
             item3.setEnabled(false);
         }
 
@@ -286,9 +288,9 @@ public class MainActivity extends AppCompatActivity
                 new FireStore.InflectionReportTask().execute(Integer.toString(0));
                 break;
 
-            case R.id.refresh_alarm_areas:
+            case R.id.refresh_inflection_areas:
                 FireStore.refreshInflectionAreasTime = null;
-                FireStore.refreshAlertAreas();
+                FireStore.refreshInflectionAreas();
                 break;
         }
         return false;

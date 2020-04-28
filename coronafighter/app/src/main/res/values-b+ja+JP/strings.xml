@@ -5,7 +5,7 @@
     <string name="trace_position_stop">追跡停止</string>
     <string name="infection_report">感染報告</string>
     <string name="infection_report_cancel">報告取消</string>
-    <string name="refresh_alarm_areas">アラーム領域更新</string>
+    <string name="refresh_inflection_areas">感染地域更新</string>
     <string name="infection_area_delete">報告削除</string>
 
     <string name="infection_report_confirm_msg">新型コロナウイルス感染エリアを追加します。よろしいですか？</string>
@@ -19,11 +19,11 @@
 
     <string name="home_msg">
         感染地域をヒットマップで可視化します。\n
+        個人情報、風評被害などに気を付けて使いましょう。\n\n
         ■ダッシュボードに感染マップを表示します。\n
         個人の移動履歴情報を追跡し、コロナが感染した場合、感染者が自己申告により、感染マップに反映します。これで該当地域を避けることができます。\n
         ■お知らせについて\n
         健康の者は過去の移動履歴情報を感染マップへの照合によって、危険度をある程度把握することができます。日々の行動を変更し、感染の拡大を防げましょう。\n
-        ■個人情報、風評被害などの問題があると思いますが、きっとうまいやり方があると信じます。\n
 
     </string>
 
