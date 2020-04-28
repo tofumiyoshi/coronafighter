@@ -8,6 +8,15 @@ public class AlarmInfo implements Parcelable {
     private double longitude;
     private String locCode;
     private int cnt;
+    private double intensity;
+
+    public double getIntensity() {
+        return intensity;
+    }
+
+    public void setIntensity(double intensity) {
+        this.intensity = intensity;
+    }
 
     public double getLatitude() {
         return latitude;

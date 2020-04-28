@@ -5,18 +5,20 @@ import android.content.Context;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.lifecycle.ViewModelStoreOwner;
 
+import com.fumi.coronafighter.AlarmInfo;
+import com.fumi.coronafighter.AlarmService;
 import com.fumi.coronafighter.Constants;
 import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.SettingInfos;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -29,6 +31,7 @@ import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -54,13 +57,15 @@ public class FireStore {
     public static FirebaseAuth mAuth;
     public static Context mContext;
 
-    private static CurrentPositionViewModel mViewModel;
+    public static CurrentPositionViewModel mViewModel;
 
     private static ListenerRegistration mListenerAlert;
     public static int infection_flag = 0;
     public static Location currentLocation;
     public static Collection<WeightedLatLng> mInflectionAreas = new ArrayList<WeightedLatLng>();
     public static Date refreshInflectionAreasTime = null;
+
+    private static ListenerRegistration mListenerForSettingInfo;
 
     public static void init(final Context context) {
         mFirebaseFirestore = FirebaseFirestore.getInstance();
@@ -71,20 +76,91 @@ public class FireStore {
         Application app = (Application)mContext.getApplicationContext();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
         mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
+
+        if (mListenerForSettingInfo != null ) {
+            mListenerForSettingInfo.remove();
+        }
+        mListenerForSettingInfo = mFirebaseFirestore.collection("corona-infos")
+                .whereEqualTo(FieldPath.documentId(),"setting-info")
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        Log.i(TAG, "SnapshotListener fired. [corona-infos/setting-info]");
+
+                        if (e != null) {
+                            Log.e(TAG, e.getMessage(), e);
+                            return;
+                        }
+                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                            Log.i(TAG, "SnapshotListener fired. [corona-infos/setting-info]: " + doc.getId());
+
+                            SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
+                            SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
+
+                            SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
+                            SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
+
+                            SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
+
+                            SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
+
+                            SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
+
+                            SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
+                            SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
+
+                            break;
+                        }
+                    }
+                });
+
+        // Add a new document
+        Map<String, Object> statusInfo = new HashMap<>();
+        statusInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
+        statusInfo.put("infection_flag", infection_flag);
+        statusInfo.put("mail", mAuth.getCurrentUser().getEmail());
+        mFirebaseFirestore.collection("users")
+                .document(mAuth.getCurrentUser().getUid())
+                .collection("infos")
+                .document("status")
+                .set(statusInfo, SetOptions.merge())
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "DocumentSnapshot successfully written!");
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.w(TAG, "Error writing document", e);
+                    }
+                });
     }
 
     public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode) {
-        Date date1 = Calendar.getInstance().getTime();
-        Timestamp timestamp = new Timestamp(date1);
-
-        registNewCoronavirusInfo(currentUser, locCode, timestamp);
-    }
-
-    public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode, Timestamp timestamp) {
-        WriteBatch batch = mFirebaseFirestore.batch();
-
         try {
-            registNewCoronavirusInfo(batch, currentUser, locCode, timestamp);
+            WriteBatch batch = mFirebaseFirestore.batch();
+
+            Date date1 = Calendar.getInstance().getTime();
+            Timestamp timestamp = new Timestamp(date1);
+
+            Map<String, Object> info = new HashMap<>();
+            info.put("timestamp", timestamp);
+
+            DocumentReference dr1 =
+                    mFirebaseFirestore.collection("corona-infos")
+                            .document(locCode);
+            batch.set(dr1, info, SetOptions.merge());
+
+            DocumentReference dr2 =
+                    mFirebaseFirestore.collection("corona-infos")
+                            .document(locCode)
+                            .collection("users")
+                            .document(currentUser.getUid());
+            batch.set(dr2, info, SetOptions.merge());
+
+            Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
 
             Task<Void> task = batch.commit();
             Tasks.await(task);
@@ -95,165 +171,137 @@ public class FireStore {
         }
     }
 
-    public static void registNewCoronavirusInfo(WriteBatch batch, FirebaseUser currentUser, String locCode, Timestamp timestamp) {
-        Map<String, Object> info = new HashMap<>();
-        info.put("timestamp", timestamp);
-
-        DocumentReference dr1 =
-                    mFirebaseFirestore.collection("corona-infos")
-                                        .document(locCode);
-        batch.set(dr1, info, SetOptions.merge());
-
-        DocumentReference dr2 =
-                mFirebaseFirestore.collection("corona-infos")
-                .document(locCode)
-                .collection("users")
-                .document(currentUser.getUid());
-        batch.set(dr2, info, SetOptions.merge());
-
-        Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
-    }
-
-    public static void removeNewCoronavirusInfo(final FirebaseUser currentUser, final String locCode) throws ExecutionException, InterruptedException {
-        WriteBatch batch = mFirebaseFirestore.batch();
-
-        removeNewCoronavirusInfo(batch, currentUser, locCode);
-
-        batch.commit();
-    }
-
-    public static void removeNewCoronavirusInfo(WriteBatch batch, final FirebaseUser currentUser) throws ExecutionException, InterruptedException {
-        // Add a new document with a generated ID;
-        Task<QuerySnapshot> task = mFirebaseFirestore
-                .collectionGroup("users")
-                .get();
-        QuerySnapshot snap = Tasks.await(task);
-        if (snap != null) {
-            List<String> processed = new ArrayList<String>();
-            for (QueryDocumentSnapshot document : snap) {
-                String docpath = document.getReference().getPath();
-
-                if (processed.contains(docpath)) {
-                    continue;
-                }
-                processed.add(docpath);
-
-                if (!docpath.contains(currentUser.getUid())) {
-                    continue;
-                }
-
-                batch.delete(document.getReference());
-            }
-        }
-    }
-
-    public static void removeNewCoronavirusInfo(WriteBatch batch, final FirebaseUser currentUser, final String locCode) throws ExecutionException, InterruptedException {
-        // Add a new document with a generated ID;
-        Task<QuerySnapshot> task = mFirebaseFirestore
-                .collectionGroup("users")
-                .get();
-        QuerySnapshot snap = Tasks.await(task);
-        if (snap != null) {
-            List<String> processed = new ArrayList<String>();
-            for (QueryDocumentSnapshot document : snap) {
-                String docpath = document.getReference().getPath();
-
-                if (processed.contains(docpath)) {
-                    continue;
-                }
-                processed.add(docpath);
-
-                if (!docpath.contains(locCode) || !docpath.contains(currentUser.getUid())) {
-                    continue;
-                }
-
-                Log.d(TAG, "removeNewCoronavirusInfo: " + docpath + " => " + document.getData());
-                batch.delete(document.getReference());
-            }
-        }
-    }
-
     public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int infection_flag)
             throws ExecutionException, InterruptedException {
         // Create a new user with a first and last name
-        Map<String, Object> activityInfo = new HashMap<>();
-        activityInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
-        activityInfo.put("infection_flag", infection_flag);
-        activityInfo.put("mail", currentUser.getEmail());
+        Map<String, Object> statusInfo = new HashMap<>();
+        statusInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
+        statusInfo.put("infection_flag", infection_flag);
+        statusInfo.put("mail", currentUser.getEmail());
 
         // Add a new document with a generated ID;
         Task<Void> task = mFirebaseFirestore.collection("users")
                 .document(currentUser.getUid())
                 .collection("infos")
                 .document("status")
-                .set(activityInfo, SetOptions.merge());
+                .set(statusInfo, SetOptions.merge());
         Tasks.await(task);
     }
 
     public static void refreshInflectionAreas() {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
-        Date now = cal.getTime();
+        Date time1 = cal.getTime();
 
-        if (refreshInflectionAreasTime != null && refreshInflectionAreasTime.after(now)) {
+        if (refreshInflectionAreasTime != null && refreshInflectionAreasTime.after(time1)) {
             return;
         }
         refreshInflectionAreasTime = Calendar.getInstance().getTime();
 
-        mInflectionAreas.clear();
+        new GetInflectionAreasAsyncTask().execute();
+    }
+
+    public static Collection<WeightedLatLng> getInflectionAreas() throws ExecutionException, InterruptedException {
+        Log.i(TAG, "getInflectionAreas...");
+
         // コードの構成は、地域コード、都市コード、街区コード、建物コードからなります。
         // 例えば8Q7XPQ3C+J88というコードの場合は、8Q7Xが地域コード（100×100km）、
         // PQが都市コード（5×5km）、3Cが街区コード（250×250m）、
         // +以降のJ88は建物コード（14×14m）を意味しています。
-        mViewModel.selectAlertAreas(mInflectionAreas);
 
         // 警報基準
         // 日時：　過去７日間
         // エリア：　PQが都市コード（5×5km）
-        mFirebaseFirestore.collection("corona-infos")
+        Task<QuerySnapshot> task = mFirebaseFirestore.collection("corona-infos")
                 .whereGreaterThan("density", 0)
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            for (QueryDocumentSnapshot document : task.getResult()) {
-                                final String locCode = document.getId();
+                .get();
+        QuerySnapshot inflectionInfos = Tasks.await(task);
 
-                                int cnt = document.getLong("density").intValue();
-                                if (cnt <= 0) {
-                                    continue;
-                                }
-                                OpenLocationCode openLocationCode = new OpenLocationCode(locCode);
-                                OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
-                                LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
-                                double intensity = 0.0;
-                                if (cnt >= SettingInfos.infection_saturation_cnt_max) {
-                                    intensity = 1.0;
-                                }
-                                else if (cnt <= SettingInfos.infection_saturation_cnt_min) {
-                                    intensity = 0.0;
-                                }
-                                else {
-                                    intensity = ((double) cnt - SettingInfos.infection_saturation_cnt_min)/
-                                            (SettingInfos.infection_saturation_cnt_max- SettingInfos.infection_saturation_cnt_min);
-                                }
-                                if (intensity <= 0.0) {
-                                    continue;
-                                }
-                                WeightedLatLng value = new WeightedLatLng(latlng, intensity);
+        Collection<WeightedLatLng> inflectionAreas = new ArrayList<WeightedLatLng>();
+        for (DocumentSnapshot document : inflectionInfos.getDocuments()) {
+            final String locCode = document.getId();
 
-                                Log.d(TAG, "add to inflected areas: " + locCode + ", cnt:" + cnt);
-                                mInflectionAreas.add(value);
-                            }
+            int cnt = document.getLong("density").intValue();
+            if (cnt <= 0) {
+                continue;
+            }
+            OpenLocationCode openLocationCode = new OpenLocationCode(locCode);
+            OpenLocationCode.CodeArea areaCode = openLocationCode.decode();
+            LatLng latlng = new LatLng(areaCode.getCenterLatitude(), areaCode.getCenterLongitude());
+            double intensity = 0.0;
+            if (cnt >= SettingInfos.infection_saturation_cnt_max) {
+                intensity = 1.0;
+            }
+            else if (cnt <= SettingInfos.infection_saturation_cnt_min) {
+                intensity = 0.0;
+            }
+            else {
+                intensity = ((double) cnt - SettingInfos.infection_saturation_cnt_min)/
+                        (SettingInfos.infection_saturation_cnt_max- SettingInfos.infection_saturation_cnt_min);
+            }
+            if (intensity <= 0.0) {
+                continue;
+            }
+            WeightedLatLng value = new WeightedLatLng(latlng, intensity);
 
-                            mViewModel.selectAlertAreas(mInflectionAreas);
-                        }
-                        else {
-                            Log.d(TAG, "Error getting documents: ", task.getException());
-                        }
+            Log.d(TAG, "add to inflected areas: " + locCode + ", cnt:" + cnt);
+            inflectionAreas.add(value);
+        }
+        return inflectionAreas;
+    }
+
+    public static  ArrayList<AlarmInfo> getTraceInfos(FirebaseUser user) throws ExecutionException, InterruptedException {
+        Log.i(TAG, "getTraceInfos...");
+
+        ArrayList<AlarmInfo> locList = new ArrayList<AlarmInfo>();
+
+        // 警報基準
+        // 日時：　過去７日間
+        Calendar cal1 = Calendar.getInstance();
+        cal1.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
+        final Date date1 = cal1.getTime();
+        final Timestamp timestamp = new Timestamp(date1);
+
+        Task<QuerySnapshot> task = mFirebaseFirestore
+                .collection("users")
+                .document(user.getUid())
+                .collection("trace-infos")
+                .whereGreaterThan("timestamp", timestamp)
+                .get();
+
+        QuerySnapshot snapshot = Tasks.await(task);
+        if (snapshot != null) {
+            for(DocumentSnapshot doc: snapshot.getDocuments()){
+                Log.i(TAG, "[trace info] docid: " + doc.getId());
+                if (!doc.contains("location")) {
+                    continue;
+                }
+
+                String locCode = doc.getString("locationcode");
+                boolean flag = false;
+                for(int i=0; i<locList.size(); i++) {
+                    AlarmInfo info = locList.get(i);
+                    if (locCode.equals(info.getLocCode())) {
+                        info.setCnt(info.getCnt() + 1);
+                        flag = true;
+                        break;
                     }
-                });
+                }
+
+                if (!flag) {
+                    AlarmInfo info = new AlarmInfo();
+                    GeoPoint location = doc.getGeoPoint("location");
+                    info.setLatitude(location.getLatitude());
+                    info.setLongitude(location.getLongitude());
+                    info.setLocCode(locCode);
+                    info.setCnt(1);
+
+                    locList.add(info);
+                }
+            }
+        }
+
+        return locList;
     }
 
     public static List<String> findExistInAlertAreasCode(final LatLng latLng) {
@@ -283,12 +331,25 @@ public class FireStore {
     }
 
     public static void removeInflectionInfo(List<String> locCodes) {
-        WriteBatch batch = mFirebaseFirestore.batch();
         try {
+            WriteBatch batch = mFirebaseFirestore.batch();
 
             for (String locCode : locCodes) {
-                removeNewCoronavirusInfo(batch, mAuth.getCurrentUser(), locCode);
+                // Add a new document with a generated ID;
+                Task<QuerySnapshot> task = mFirebaseFirestore
+                        .collection("corona-infos")
+                        .document(locCode)
+                        .collection("users")
+                        .get();
+
+                QuerySnapshot snap = Tasks.await(task);
+                if (snap != null) {
+                    for (QueryDocumentSnapshot document : snap) {
+                        batch.delete(document.getReference());
+                    }
+                }
             }
+
             Task<Void> task = batch.commit();
             Tasks.await(task);
         } catch (ExecutionException e) {
@@ -337,7 +398,7 @@ public class FireStore {
                 FirebaseAuth auth = FirebaseAuth.getInstance();
                 int flag = Integer.parseInt(args[0]);
                 if (flag == 0 || flag == 1) {
-                    FireStore.reportNewCoronavirusInfection(auth.getCurrentUser(), flag);
+                    reportNewCoronavirusInfection(auth.getCurrentUser(), flag);
                 }
                 else if (flag == 5) {
                     List<String> locCodes = new ArrayList<String>();

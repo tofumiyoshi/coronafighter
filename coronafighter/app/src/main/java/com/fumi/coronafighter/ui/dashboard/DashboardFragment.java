@@ -31,7 +31,6 @@ import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.WriteBatch;
 import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.google.maps.android.heatmaps.WeightedLatLng;
 import com.google.openlocationcode.OpenLocationCode;
@@ -40,7 +39,6 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 public class DashboardFragment extends Fragment implements OnMapReadyCallback {
     private static final String TAG = "DashboardFragment";
@@ -57,17 +55,17 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
 
         mAuth = FirebaseAuth.getInstance();
 
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
         return root;
     }
 
     @Override
     public void onStart() {
         super.onStart();
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
 
         refreshInflectionAreas(FireStore.currentLocation);
     }
@@ -171,7 +169,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
     }
 
     private void refreshInflectionAreas(Location location) {
-        if (mMap == null) {
+        if (mMap == null || location == null) {
             return;
         }
 
@@ -186,7 +184,6 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback {
         mMap.moveCamera(camera);
 
         FireStore.currentLocation = location;
-
         FireStore.refreshInflectionAreas();
     }
 

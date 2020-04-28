@@ -1,5 +1,6 @@
 package com.fumi.coronafighter;
 
+import android.app.Application;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -15,30 +16,27 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.fumi.coronafighter.firebase.FireStore;
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
-import com.google.firebase.Timestamp;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
-import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.maps.android.heatmaps.WeightedLatLng;
+import com.google.maps.android.projection.SphericalMercatorProjection;
 import com.google.openlocationcode.OpenLocationCode;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class AlarmService extends Service {
-    private static final String TAG = "AlarmService";
+    private static final String TAG = AlarmService.class.getName();
 
     private Context context;
     private FirebaseAuth mAuth;
@@ -110,30 +108,19 @@ public class AlarmService extends Service {
     }
 
     protected void startMoniting() {
+        if (mListenerAlert != null) {
+            mListenerAlert.remove();
+        }
         mListenerAlert = mFirebaseFirestore.collection("corona-infos")
                 .whereEqualTo(FieldPath.documentId(),"info")
                 .addSnapshotListener(new EventListener<QuerySnapshot>() {
                     @Override
                     public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                        Log.i(TAG, "SnapshotListener fired. [corona-infos/info]");
+
                         if (e != null) {
                             Log.e(TAG, e.getMessage(), e);
                             return;
-                        }
-                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                            SettingInfos.tracing_time_interval_second = doc.getLong("tracing_time_interval_second").intValue();
-                            SettingInfos.tracing_min_distance_meter = doc.getLong("tracing_min_distance_meter").intValue();
-
-                            SettingInfos.map_min_zoom = doc.getLong("map_min_zoom").intValue();
-                            SettingInfos.map_default_zoom = doc.getLong("map_default_zoom").intValue();
-
-                            SettingInfos.refresh_alarm_distance_min_meter = doc.getLong("refresh_alarm_distance_min_meter").intValue();
-
-                            SettingInfos.refresh_alarm_areas_min_interval_second = doc.getLong("refresh_alarm_areas_min_interval_second").intValue();
-
-                            SettingInfos.alarm_limit = doc.getLong("alarm_limit").intValue();
-
-                            SettingInfos.infection_saturation_cnt_min = doc.getLong("infection_saturation_cnt_min").intValue();
-                            SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
                         }
 
                         Calendar cal = Calendar.getInstance();
@@ -179,58 +166,41 @@ public class AlarmService extends Service {
             Log.d(TAG, "doInBackground ...");
 
             final ArrayList<AlarmInfo> res = new ArrayList<AlarmInfo>();
-            final ArrayList<AlarmInfo> locList = new ArrayList<AlarmInfo>();
 
             FirebaseUser user = mAuth.getCurrentUser();
             if (user == null) {
-                return null;
+                return res;
             }
 
-            // 警報基準
-            // 日時：　過去７日間
-            Calendar cal1 = Calendar.getInstance();
-            cal1.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
-            final Date date1 = cal1.getTime();
-            final Timestamp timestamp = new Timestamp(date1);
-
-            Task<QuerySnapshot> task = mFirebaseFirestore
-                    .collection("users")
-                    .document(user.getUid())
-                    .collection("trace-infos")
-                    .whereGreaterThan("timestamp", timestamp)
-                    .get();
             try {
-                QuerySnapshot snapshot = Tasks.await(task);
-                if (snapshot != null) {
-                    for(DocumentSnapshot doc: snapshot.getDocuments()){
-                        if (!doc.contains("location")) {
-                            continue;
-                        }
+                Collection<WeightedLatLng> inflectionAreas = FireStore.getInflectionAreas();
+                Log.i(TAG, "[inflectionAreas info] cnt: " + inflectionAreas.size());
+                if (inflectionAreas.size() == 0) {
+                    return res;
+                }
 
-                        String locCode = doc.getString("locationcode");
-                        boolean flag = false;
-                        for(int i=0; i<locList.size(); i++) {
-                            AlarmInfo info = locList.get(i);
-                            if (locCode.equals(info.getLocCode())) {
-                                info.setCnt(info.getCnt() + 1);
-                                flag = true;
-                                break;
-                            }
-                        }
+                ArrayList<AlarmInfo> traceInfos = FireStore.getTraceInfos(user);
+                Log.i(TAG, "[trace info] cnt: " + traceInfos.size());
+                if (traceInfos.size() == 0) {
+                    return res;
+                }
 
-                        if (!flag) {
-                            AlarmInfo info = new AlarmInfo();
-                            GeoPoint location = doc.getGeoPoint("location");
-                            info.setLatitude(location.getLatitude());
-                            info.setLongitude(location.getLongitude());
-                            info.setLocCode(locCode);
-                            info.setCnt(1);
+                SphericalMercatorProjection sProjection = new SphericalMercatorProjection(1.0D);
+                for (WeightedLatLng weightedLatLng : inflectionAreas) {
+                    LatLng latLng = sProjection.toLatLng(weightedLatLng.getPoint());
+                    OpenLocationCode olc = new OpenLocationCode(latLng.latitude, latLng.longitude,
+                            Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
+                    String code = olc.getCode();
 
-                            locList.add(info);
+                    for (AlarmInfo info: traceInfos) {
+                        if (code.equals(info.getLocCode())) {
+                            info.setIntensity(info.getCnt() * weightedLatLng.getIntensity());
+
+                            Log.i(TAG, "add to alarm areas: " + info.getLocCode() + "(" + info.getIntensity() + ")");
+                            res.add(info);
+                            break;
                         }
                     }
-
-                    chkLoc4Alaram(locList, res);
                 }
             } catch (ExecutionException e) {
                 Log.e(TAG, e.getMessage(), e);
@@ -256,41 +226,6 @@ public class AlarmService extends Service {
 
             CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
             app.setAlarmAreas(result);
-        }
-
-        private void chkLoc4Alaram(final ArrayList<AlarmInfo> locList, final ArrayList<AlarmInfo> res) {
-            Task<QuerySnapshot> task = mFirebaseFirestore.collection("corona-infos")
-                    .get();
-            try {
-                QuerySnapshot snapshot = Tasks.await(task);
-                if (snapshot != null) {
-                    List<DocumentSnapshot> list = snapshot.getDocuments();
-                    for(DocumentSnapshot doc: list){
-                        String docId = doc.getId();
-                        if (docId.equals("info")) {
-                            continue;
-                        }
-
-                        for (final AlarmInfo info : locList) {
-                            if (docId.equals(info.getLocCode())) {
-                                if (doc.getLong("density") > info.getCnt()) {
-                                    info.setCnt(doc.getLong("density").intValue());
-                                }
-                                res.add(info);
-                                Log.d(TAG, "add to alarm areas:" + info.getLocCode() + ", cnt:" + info.getCnt());
-                                break;
-                            }
-                        }
-
-                        CoronaFighterApplication app = (CoronaFighterApplication)getApplication();
-                        app.setAlarmAreas(res);
-                    }
-                }
-            } catch (ExecutionException e) {
-                Log.e(TAG, e.getMessage(), e);
-            } catch (InterruptedException e) {
-                Log.e(TAG, e.getMessage(), e);
-            }
         }
     }
 }

@@ -38,7 +38,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LocationService extends Service implements MyLocationManager.OnLocationResultListener{
-    private static final String TAG = "LocationService";
+    private static final String TAG = LocationService.class.getName();
 
     private Context context;
 

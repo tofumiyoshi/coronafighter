@@ -6,7 +6,8 @@
     <string name="infection_report">Infection Report</string>
     <string name="infection_report_cancel">Report Cancel</string>
     <string name="refresh_inflection_areas">Refresh Inflection Areas</string>
-    <string name="infection_area_delete">Report Delete</string>
+    <string name="infection_area_add">Add Inflection Area</string>
+    <string name="infection_area_delete">Delete Inflection Area</string>
 
     <string name="infection_report_confirm_msg">Add new coronavirus infection area. is this good?</string>
     <string name="infection_report_confirm_msg_by_tracing">Add new coronavirus infection area based on historical data. is this good?</string>

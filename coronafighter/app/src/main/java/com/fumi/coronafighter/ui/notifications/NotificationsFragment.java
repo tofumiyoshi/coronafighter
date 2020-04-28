@@ -131,17 +131,7 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         ArrayList<WeightedLatLng> infos = new ArrayList<WeightedLatLng>();
         for (AlarmInfo info: alarminfos) {
             LatLng latLng = new LatLng(info.getLatitude(), info.getLongitude());
-            double intensity = 0.0;
-            if (info.getCnt() >= SettingInfos.infection_saturation_cnt_max) {
-                intensity = 1.0;
-            }
-            else if (info.getCnt() <= SettingInfos.infection_saturation_cnt_min) {
-                intensity = 0.0;
-            }
-            else {
-                intensity = ((double) info.getCnt() - SettingInfos.infection_saturation_cnt_min)/
-                        (SettingInfos.infection_saturation_cnt_max - SettingInfos.infection_saturation_cnt_min);
-            }
+            double intensity = info.getIntensity();
 
             WeightedLatLng weightedLatLng = new WeightedLatLng(latLng, intensity);
 

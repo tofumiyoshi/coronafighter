@@ -5,8 +5,9 @@
     <string name="trace_position_stop">追跡停止</string>
     <string name="infection_report">感染報告</string>
     <string name="infection_report_cancel">報告取消</string>
-    <string name="refresh_inflection_areas">感染地域更新</string>
-    <string name="infection_area_delete">報告削除</string>
+    <string name="refresh_inflection_areas">再表示</string>
+    <string name="infection_area_add">感染地域追加</string>
+    <string name="infection_area_delete">感染地域削除</string>
 
     <string name="infection_report_confirm_msg">新型コロナウイルス感染エリアを追加します。よろしいですか？</string>
     <string name="infection_report_confirm_msg_by_tracing">これまで１週間の移動データをもとに新型コロナウイルス感染エリアを追加します。よろしいでしょうか？</string>

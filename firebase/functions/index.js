@@ -81,8 +81,8 @@ exports.userInflectionReportListener = functions
     .document('users/{userid}/infos/status')
     .onUpdate(async (change, context) => {
 
-        const coronaInfosRef = admin.firestore().collection('corona-infos').doc('info');
-        const coronaInfosInfos = await coronaInfosRef.get();
+        const coronaSettingInfoRef = admin.firestore().collection('corona-infos').doc('setting-info');
+        const coronaSettingInfo = await coronaSettingInfoRef.get();
 
         if (change.before.data().infection_flag === 0) {
             if (change.after.data().infection_flag === 1) {
@@ -121,7 +121,7 @@ exports.userInflectionReportListener = functions
         const coronaInfoRef = admin.firestore().collection('corona-infos').doc("info");
         return coronaInfoRef.set(
                     {timestamp: admin.firestore.FieldValue.serverTimestamp()}, 
-                    {merge: true});      
+                    {merge: true});
 });
 
 function deleteUserInflectInfos(db, userid, batchSize) {
