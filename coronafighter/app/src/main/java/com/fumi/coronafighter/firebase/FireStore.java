@@ -179,6 +179,7 @@ public class FireStore {
         Map<String, Object> activityInfo = new HashMap<>();
         activityInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
         activityInfo.put("infection_flag", infection_flag);
+        activityInfo.put("mail", currentUser.getEmail());
 
         // Add a new document with a generated ID;
         Task<Void> task = mFirebaseFirestore.collection("users")
@@ -291,9 +292,9 @@ public class FireStore {
             Task<Void> task = batch.commit();
             Tasks.await(task);
         } catch (ExecutionException e) {
-            Log.d(TAG, e.getMessage(), e);
+            Log.e(TAG, e.getMessage(), e);
         } catch (InterruptedException e) {
-            Log.d(TAG, e.getMessage(), e);
+            Log.e(TAG, e.getMessage(), e);
         }
     }
 
@@ -301,15 +302,16 @@ public class FireStore {
         if (mAuth == null || mAuth.getCurrentUser() == null) {
             return;
         }
+        Log.i(TAG, "maintainace...");
 
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
         Date date1 = calendar.getTime();
 
         String docIdMin = Constants.DATE_FORMAT_4_NAME.format(date1);
-        final String mail = mAuth.getCurrentUser().getUid();
+        final String uid = mAuth.getCurrentUser().getUid();
         mFirebaseFirestore.collection("users")
-                .document(mail)
+                .document(uid)
                 .collection("trace-infos")
                 .whereLessThan(FieldPath.documentId(), docIdMin)
                 .get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
@@ -318,7 +320,7 @@ public class FireStore {
                             WriteBatch batch = mFirebaseFirestore.batch();
 
                             for (DocumentSnapshot doc : queryDocumentSnapshots) {
-                                mFirebaseFirestore.collection(mail).document(doc.getId()).delete();
+                                mFirebaseFirestore.collection(uid).document(doc.getId()).delete();
                             }
 
                             batch.commit();

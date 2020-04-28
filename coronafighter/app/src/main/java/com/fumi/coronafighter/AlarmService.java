@@ -47,6 +47,7 @@ public class AlarmService extends Service {
     private static ListenerRegistration mListenerAlert;
 
     private static AsyncTask<Void, Void, ArrayList<AlarmInfo>> mTask;
+    public static Date refreshAlarmAreasTime = null;
 
     @Override
     public void onCreate() {
@@ -135,6 +136,14 @@ public class AlarmService extends Service {
                             SettingInfos.infection_saturation_cnt_max = doc.getLong("infection_saturation_cnt_max").intValue();
                         }
 
+                        Calendar cal = Calendar.getInstance();
+                        cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
+                        Date date1 = cal.getTime();
+                        if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(date1)) {
+                            return;
+                        }
+                        refreshAlarmAreasTime = Calendar.getInstance().getTime();
+
                         if (mTask.getStatus() == AsyncTask.Status.PENDING) {
                             mTask.execute();
                         }
@@ -172,20 +181,17 @@ public class AlarmService extends Service {
             final ArrayList<AlarmInfo> res = new ArrayList<AlarmInfo>();
             final ArrayList<AlarmInfo> locList = new ArrayList<AlarmInfo>();
 
-            // 警報基準
-            // 日時：　過去７日間
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
-            final Date date1 = cal.getTime();
-            final Timestamp timestamp = new Timestamp(date1);
-
             FirebaseUser user = mAuth.getCurrentUser();
             if (user == null) {
-                return res;
+                return null;
             }
 
-            // delete past data not used
-            FireStore.maintainace();
+            // 警報基準
+            // 日時：　過去７日間
+            Calendar cal1 = Calendar.getInstance();
+            cal1.add(Calendar.DAY_OF_YEAR, -1 * SettingInfos.alarm_limit);
+            final Date date1 = cal1.getTime();
+            final Timestamp timestamp = new Timestamp(date1);
 
             Task<QuerySnapshot> task = mFirebaseFirestore
                     .collection("users")
@@ -230,6 +236,14 @@ public class AlarmService extends Service {
                 Log.e(TAG, e.getMessage(), e);
             } catch (InterruptedException e) {
                 Log.e(TAG, e.getMessage(), e);
+            } finally {
+                // delete past data not used
+                Calendar cal2 = Calendar.getInstance();
+                cal2.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
+                Date time2 = cal2.getTime();
+                if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.before(time2)) {
+                    FireStore.maintainace();
+                }
             }
 
             Log.i(TAG, "Task finished.");
