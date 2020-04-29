@@ -164,7 +164,7 @@ public class MainActivity extends AppCompatActivity
                 // response.getError().getErrorCode() and handle the error.
                 Toast.makeText(this, "Sign in failed.", Toast.LENGTH_SHORT).show();
 
-                finish();
+                finishAndRemoveTask();
             }
         }
     }
@@ -194,7 +194,7 @@ public class MainActivity extends AppCompatActivity
         }
         else {
             Toast.makeText(this, "Location Permission denied", Toast.LENGTH_SHORT).show();
-            finish();
+            finishAndRemoveTask();
         }
     }
 
@@ -206,7 +206,7 @@ public class MainActivity extends AppCompatActivity
                         mListenerStatus.remove();
 
                         //Toast.makeText(getApplicationContext(), "Sign out completed.", Toast.LENGTH_SHORT).show();
-                        finish();
+                        finishAndRemoveTask();
                     }
                 });
     }

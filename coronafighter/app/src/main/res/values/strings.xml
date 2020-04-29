@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">CoronaMutualAssistance</string>
     <string name="logout">Logout</string>
+    <string name="refresh">Refresh</string>
     <string name="trace_position_start">Trace Position Start</string>
     <string name="trace_position_stop">Trace Position Stop</string>
     <string name="infection_report">Infection Report</string>
