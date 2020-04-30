@@ -127,6 +127,7 @@ public class AlarmService extends Service {
                         cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
                         Date date1 = cal.getTime();
                         if (refreshAlarmAreasTime != null && refreshAlarmAreasTime.after(date1)) {
+                            Log.i(TAG, "refresh alarm areas skipped.");
                             return;
                         }
                         refreshAlarmAreasTime = Calendar.getInstance().getTime();

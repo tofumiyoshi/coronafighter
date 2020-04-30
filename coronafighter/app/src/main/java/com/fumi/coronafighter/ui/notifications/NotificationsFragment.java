@@ -84,7 +84,7 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         mAreasViewModel.getSelected().observe(this, new Observer<ArrayList<AlarmInfo>>() {
             @Override
             public void onChanged(final ArrayList<AlarmInfo> infos) {
-                if (mMap == null || infos == null || infos.size() <=0) {
+                if (mMap == null || infos == null) {
                     Log.i(TAG, "No value in map or infos of AlarmAreasViewModel's on change.");
                     return;
                 }
@@ -120,12 +120,15 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
     }
 
     public void setAlarmAreas(List<AlarmInfo> alarminfos) {
-        if (mMap == null || alarminfos == null || alarminfos.size() == 0) {
+        if (mMap == null || alarminfos == null) {
             return;
         }
 
         if (mOverlay != null) {
             mOverlay.remove();
+        }
+        if (alarminfos.size() == 0) {
+            return;
         }
 
         ArrayList<WeightedLatLng> infos = new ArrayList<WeightedLatLng>();

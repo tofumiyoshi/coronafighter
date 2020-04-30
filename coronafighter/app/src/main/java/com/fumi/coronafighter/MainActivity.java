@@ -249,8 +249,6 @@ public class MainActivity extends AppCompatActivity
             item.setEnabled(false);
             MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
             item2.setEnabled(false);
-            MenuItem item3 = menu.findItem(R.id.refresh_inflection_areas);
-            item3.setEnabled(false);
         }
 
         return true;
@@ -289,8 +287,19 @@ public class MainActivity extends AppCompatActivity
                 break;
 
             case R.id.refresh_inflection_areas:
-                FireStore.refreshInflectionAreasTime = null;
-                FireStore.refreshInflectionAreas();
+                NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+                int idCurrentDestination = navController.getCurrentDestination().getId();
+                if (idCurrentDestination == R.id.navigation_dashboard) {
+                    FireStore.refreshInflectionAreasTime = null;
+                    FireStore.refreshInflectionAreas();
+                }
+                else if (idCurrentDestination == R.id.navigation_notifications) {
+                    Intent intent3 = new Intent(getApplication(), AlarmService.class);
+                    stopService(intent3);
+
+                    startService(intent3);
+                }
+
                 break;
         }
         return false;
