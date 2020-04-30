@@ -26,6 +26,9 @@ public class GetInflectionAreasAsyncTask extends AsyncTask<Void, Integer, Collec
 
     @Override
     protected void onPostExecute(Collection<WeightedLatLng> result) {
+        if (result == null) {
+            return;
+        }
         FireStore.mInflectionAreas.clear();
         FireStore.mInflectionAreas.addAll(result);
         Log.d(TAG, "inflected areas data cnt: " + FireStore.mInflectionAreas.size());
