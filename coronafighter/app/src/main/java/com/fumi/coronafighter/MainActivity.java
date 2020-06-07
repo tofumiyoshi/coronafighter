@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity
         // application will never receive updates faster than this value.
         mLocationRequest.setFastestInterval(SettingInfos.refresh_alarm_areas_min_interval_second * 1000);
 
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         // Sets the maximum time when batched location updates are delivered. Updates may be
         // delivered sooner than this interval.
