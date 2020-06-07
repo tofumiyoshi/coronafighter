@@ -105,7 +105,12 @@ public class MainActivity extends AppCompatActivity
                             return;
                         }
                         for(DocumentSnapshot document : queryDocumentSnapshots.getDocuments()) {
-                            FireStore.infection_flag = document.getLong("infection_flag").intValue();
+                            if (document.getLong("infection_flag") != null) {
+                                FireStore.infection_flag = document.getLong("infection_flag").intValue();
+                            }
+                            else {
+                                FireStore.infection_flag = 0;
+                            }
 
                             invalidateOptionsMenu();
                             break;
