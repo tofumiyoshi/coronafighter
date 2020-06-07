@@ -26,4 +26,12 @@
         Healthy people can grasp the degree of risk to some extent by comparing the past movement history information with the infection map. Change your daily behavior to prevent the spread of infection. \n
     </string>
 
+    <string name="unknown_location">Unknown location</string>
+    <plurals name="num_locations_reported">
+        <item quantity="zero">No location reported</item>
+        <item quantity="one">One location reported</item>
+        <item quantity="other">%d locations reported</item>
+    </plurals>
+
+
 </resources>

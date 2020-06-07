@@ -1,26 +1,22 @@
 package com.fumi.coronafighter;
 
 import android.Manifest;
-import android.app.AlertDialog;
-import android.app.Application;
-import android.content.Context;
-import android.content.DialogInterface;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
 import com.firebase.ui.auth.IdpResponse;
 import com.fumi.coronafighter.firebase.FireStore;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -35,24 +31,16 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.lifecycle.ViewModelStoreOwner;
 import androidx.navigation.NavController;
-import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity
-        implements ActivityCompat.OnRequestPermissionsResultCallback,
-        NavController.OnDestinationChangedListener {
+        implements ActivityCompat.OnRequestPermissionsResultCallback {
     private static final String TAG = "MainActivity";
 
     private FirebaseAuth mAuth;
@@ -68,7 +56,6 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
-        //toolbar.setLogo(R.mipmap.ic_launcher);
         setSupportActionBar(toolbar);
 
         initialize();
@@ -96,17 +83,14 @@ public class MainActivity extends AppCompatActivity
                 R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        navController.addOnDestinationChangedListener(this);
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
         NavigationUI.setupWithNavController(navView, navController);
 
         FireStore.init(getApplicationContext());
 
-        Intent intent = new Intent(getApplication(), LocationService.class);
-        startService(intent);
-
-        Intent intent2 = new Intent(getApplication(), AlarmService.class);
-        startService(intent2);
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        createLocationRequest();
+        requestLocationUpdates();
 
         mFirebaseFirestore = FirebaseFirestore.getInstance();
         mListenerStatus = mFirebaseFirestore.collection("users")
@@ -203,9 +187,6 @@ public class MainActivity extends AppCompatActivity
                 .signOut(this)
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     public void onComplete(@NonNull Task<Void> task) {
-                        mListenerStatus.remove();
-
-                        //Toast.makeText(getApplicationContext(), "Sign out completed.", Toast.LENGTH_SHORT).show();
                         finishAndRemoveTask();
                     }
                 });
@@ -222,91 +203,90 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main, menu);
+    /**
+     * Stores parameters for requests to the FusedLocationProviderApi.
+     */
+    private LocationRequest mLocationRequest;
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-        int idCurrentDestination = navController.getCurrentDestination().getId();
-        if (idCurrentDestination == R.id.navigation_dashboard) {
-            if (FireStore.infection_flag == 0) {
-                MenuItem item = menu.findItem(R.id.infection_report);
-                item.setEnabled(true);
+    /**
+     * Provides access to the Fused Location Provider API.
+     */
+    private FusedLocationProviderClient mFusedLocationClient;
 
-                MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
-                item2.setEnabled(false);
-            }
-            else {
-                MenuItem item = menu.findItem(R.id.infection_report);
-                item.setEnabled(false);
+    /**
+     * Sets up the location request. Android has two location request settings:
+     * {@code ACCESS_COARSE_LOCATION} and {@code ACCESS_FINE_LOCATION}. These settings control
+     * the accuracy of the current location. This sample uses ACCESS_FINE_LOCATION, as defined in
+     * the AndroidManifest.xml.
+     * <p/>
+     * When the ACCESS_FINE_LOCATION setting is specified, combined with a fast update
+     * interval (5 seconds), the Fused Location Provider API returns location updates that are
+     * accurate to within a few feet.
+     * <p/>
+     * These settings are appropriate for mapping applications that show real-time location
+     * updates.
+     */
+    private void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
 
-                MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
-                item2.setEnabled(true);
-            }
-        } else if (idCurrentDestination == R.id.navigation_notifications ||
-                idCurrentDestination == R.id.navigation_home) {
-            MenuItem item = menu.findItem(R.id.infection_report);
-            item.setEnabled(false);
-            MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
-            item2.setEnabled(false);
+        // Sets the desired interval for active location updates. This interval is
+        // inexact. You may not receive updates at all if no location sources are available, or
+        // you may receive them slower than requested. You may also receive updates faster than
+        // requested if other applications are requesting location at a faster interval.
+        // Note: apps running on "O" devices (regardless of targetSdkVersion) may receive updates
+        // less frequently than this interval when the app is no longer in the foreground.
+        mLocationRequest.setInterval(SettingInfos.tracing_time_interval_second * 1000);
+
+        // Sets the fastest rate for active location updates. This interval is exact, and your
+        // application will never receive updates faster than this value.
+        mLocationRequest.setFastestInterval(SettingInfos.refresh_alarm_areas_min_interval_second * 1000);
+
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+
+        // Sets the maximum time when batched location updates are delivered. Updates may be
+        // delivered sooner than this interval.
+        mLocationRequest.setMaxWaitTime(SettingInfos.tracing_time_interval_second * 3000);
+    }
+
+    private PendingIntent getPendingIntent() {
+        Intent intent = new Intent(this, LocationUpdatesBroadcastReceiver.class);
+        intent.setAction(LocationUpdatesBroadcastReceiver.ACTION_PROCESS_UPDATES);
+        return PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    /**
+     * Handles the Request Updates button and requests start of location updates.
+     */
+    public void requestLocationUpdates() {
+        try {
+            Log.i(TAG, "Starting location updates");
+            Utils.setRequestingLocationUpdates(this, true);
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest, getPendingIntent());
+        } catch (SecurityException e) {
+            Utils.setRequestingLocationUpdates(this, false);
+            e.printStackTrace();
         }
+    }
 
-        return true;
+    /**
+     * Handles the Remove Updates button, and requests removal of location updates.
+     */
+    public void removeLocationUpdates() {
+        Log.i(TAG, "Removing location updates");
+        Utils.setRequestingLocationUpdates(this, false);
+        mFusedLocationClient.removeLocationUpdates(getPendingIntent());
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.logout:
-                Intent intent = new Intent(getApplication(), LocationService.class);
-                stopService(intent);
-
-                Intent intent2 = new Intent(getApplication(), AlarmService.class);
-                stopService(intent2);
-
-                signOut();
-                break;
-            case R.id.infection_report:
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle(R.string.infection_report)
-                        .setMessage(R.string.infection_report_confirm_msg_by_tracing)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                FireStore.refreshInflectionAreasTime = null;
-                                new FireStore.InflectionReportTask().execute(Integer.toString(1));
-                            }
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
-
-                break;
-            case R.id.infection_report_cancel:
-                FireStore.refreshInflectionAreasTime = null;
-                new FireStore.InflectionReportTask().execute(Integer.toString(0));
-                break;
-
-            case R.id.refresh_inflection_areas:
-                NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
-                int idCurrentDestination = navController.getCurrentDestination().getId();
-                if (idCurrentDestination == R.id.navigation_dashboard) {
-                    FireStore.refreshInflectionAreasTime = null;
-                    FireStore.refreshInflectionAreas();
-                }
-                else if (idCurrentDestination == R.id.navigation_notifications) {
-                    Intent intent3 = new Intent(getApplication(), AlarmService.class);
-                    stopService(intent3);
-
-                    startService(intent3);
-                }
-
-                break;
-        }
-        return false;
+    public void onStart(){
+        super.onStart();;
     }
 
     @Override
-    public void onDestinationChanged(@NonNull NavController controller, @NonNull NavDestination destination, @Nullable Bundle arguments) {
-        invalidateOptionsMenu();
+    public void onStop() {
+        mListenerStatus.remove();
+
+        super.onStop();
     }
+
 }

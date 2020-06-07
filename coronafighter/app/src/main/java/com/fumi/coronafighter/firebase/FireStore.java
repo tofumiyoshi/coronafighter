@@ -2,19 +2,15 @@ package com.fumi.coronafighter.firebase;
 
 import android.app.Application;
 import android.content.Context;
-import android.location.Location;
 import android.os.AsyncTask;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.lifecycle.ViewModelStoreOwner;
 
 import com.fumi.coronafighter.AlarmInfo;
-import com.fumi.coronafighter.AlarmService;
 import com.fumi.coronafighter.Constants;
-import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.SettingInfos;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -57,13 +53,11 @@ public class FireStore {
     public static FirebaseAuth mAuth;
     public static Context mContext;
 
-    public static CurrentPositionViewModel mViewModel;
-
     private static ListenerRegistration mListenerAlert;
     public static int infection_flag = 0;
-    public static Location currentLocation;
-    public static Collection<WeightedLatLng> mInflectionAreas = new ArrayList<WeightedLatLng>();
-    public static Date refreshInflectionAreasTime = null;
+//    public static Location currentLocation;
+//    public static Collection<WeightedLatLng> mInflectionAreas = new ArrayList<WeightedLatLng>();
+//    public static Date refreshInflectionAreasTime = null;
 
     private static ListenerRegistration mListenerForSettingInfo;
 
@@ -75,7 +69,6 @@ public class FireStore {
 
         Application app = (Application)mContext.getApplicationContext();
         ViewModelProvider.NewInstanceFactory factory = new ViewModelProvider.NewInstanceFactory();
-        mViewModel = new ViewModelProvider((ViewModelStoreOwner) app, factory).get(CurrentPositionViewModel.class);
 
         if (mListenerForSettingInfo != null ) {
             mListenerForSettingInfo.remove();
@@ -117,7 +110,6 @@ public class FireStore {
         // Add a new document
         Map<String, Object> statusInfo = new HashMap<>();
         statusInfo.put("timestamp", Constants.DATE_FORMAT.format(Calendar.getInstance().getTime()));
-        statusInfo.put("infection_flag", infection_flag);
         statusInfo.put("mail", mAuth.getCurrentUser().getEmail());
         mFirebaseFirestore.collection("users")
                 .document(mAuth.getCurrentUser().getUid())
@@ -139,36 +131,29 @@ public class FireStore {
     }
 
     public static void registNewCoronavirusInfo(FirebaseUser currentUser, String locCode) {
-        try {
-            WriteBatch batch = mFirebaseFirestore.batch();
+        WriteBatch batch = mFirebaseFirestore.batch();
 
-            Date date1 = Calendar.getInstance().getTime();
-            Timestamp timestamp = new Timestamp(date1);
+        Date date1 = Calendar.getInstance().getTime();
+        Timestamp timestamp = new Timestamp(date1);
 
-            Map<String, Object> info = new HashMap<>();
-            info.put("timestamp", timestamp);
+        Map<String, Object> info = new HashMap<>();
+        info.put("timestamp", timestamp);
 
-            DocumentReference dr1 =
-                    mFirebaseFirestore.collection("corona-infos")
-                            .document(locCode);
-            batch.set(dr1, info, SetOptions.merge());
+        DocumentReference dr1 =
+                mFirebaseFirestore.collection("corona-infos")
+                        .document(locCode);
+        batch.set(dr1, info, SetOptions.merge());
 
-            DocumentReference dr2 =
-                    mFirebaseFirestore.collection("corona-infos")
-                            .document(locCode)
-                            .collection("users")
-                            .document(currentUser.getUid());
-            batch.set(dr2, info, SetOptions.merge());
+        DocumentReference dr2 =
+                mFirebaseFirestore.collection("corona-infos")
+                        .document(locCode)
+                        .collection("users")
+                        .document(currentUser.getUid());
+        batch.set(dr2, info, SetOptions.merge());
 
-            Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
+        Log.d(TAG, "registNewCoronavirusInfo: " + dr2.getId() + " => " + info);
 
-            Task<Void> task = batch.commit();
-            Tasks.await(task);
-        } catch (ExecutionException e) {
-            Log.d(TAG, e.getMessage(), e);
-        } catch (InterruptedException e) {
-            Log.d(TAG, e.getMessage(), e);
-        }
+        Task<Void> task = batch.commit();
     }
 
     public static void reportNewCoronavirusInfection(final FirebaseUser currentUser, int infection_flag)
@@ -185,21 +170,20 @@ public class FireStore {
                 .collection("infos")
                 .document("status")
                 .set(statusInfo, SetOptions.merge());
-        Tasks.await(task);
     }
 
-    public static void refreshInflectionAreas() {
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
-        Date time1 = cal.getTime();
-
-        if (refreshInflectionAreasTime != null && refreshInflectionAreasTime.after(time1)) {
-            return;
-        }
-        refreshInflectionAreasTime = Calendar.getInstance().getTime();
-
-        new GetInflectionAreasAsyncTask().execute();
-    }
+//    public static void refreshInflectionAreas() {
+//        Calendar cal = Calendar.getInstance();
+//        cal.add(Calendar.SECOND, -1 * SettingInfos.refresh_alarm_areas_min_interval_second);
+//        Date time1 = cal.getTime();
+//
+//        if (refreshInflectionAreasTime != null && refreshInflectionAreasTime.after(time1)) {
+//            return;
+//        }
+//        refreshInflectionAreasTime = Calendar.getInstance().getTime();
+//
+//        new GetInflectionAreasAsyncTask().execute();
+//    }
 
     public static Collection<WeightedLatLng> getInflectionAreas() throws ExecutionException, InterruptedException {
         Log.i(TAG, "getInflectionAreas...");
@@ -304,8 +288,8 @@ public class FireStore {
         return locList;
     }
 
-    public static List<String> findExistInAlertAreasCode(final LatLng latLng) {
-        if  (mInflectionAreas == null || mInflectionAreas.size() == 0) {
+    public static List<String> findExistInAlertAreasCode(final LatLng latLng, Collection<WeightedLatLng> weightedLatLngs) {
+        if  (weightedLatLngs == null || weightedLatLngs.size() == 0) {
             return null;
         }
 
@@ -316,7 +300,7 @@ public class FireStore {
         String code = olc.getCode();
 
         SphericalMercatorProjection sProjection = new SphericalMercatorProjection(1.0D);
-        for (WeightedLatLng item : mInflectionAreas) {
+        for (WeightedLatLng item : weightedLatLngs) {
             LatLng latLng2 = sProjection.toLatLng(item.getPoint());
             OpenLocationCode olc2 = new OpenLocationCode(latLng2.latitude, latLng2.longitude,
                     Constants.OPEN_LOCATION_CODE_LENGTH_TO_GENERATE);
@@ -331,32 +315,31 @@ public class FireStore {
     }
 
     public static void removeInflectionInfo(List<String> locCodes) {
-        try {
-            WriteBatch batch = mFirebaseFirestore.batch();
+        WriteBatch batch = mFirebaseFirestore.batch();
 
-            for (String locCode : locCodes) {
-                // Add a new document with a generated ID;
-                Task<QuerySnapshot> task = mFirebaseFirestore
-                        .collection("corona-infos")
-                        .document(locCode)
-                        .collection("users")
-                        .get();
-
-                QuerySnapshot snap = Tasks.await(task);
-                if (snap != null) {
-                    for (QueryDocumentSnapshot document : snap) {
-                        batch.delete(document.getReference());
-                    }
-                }
-            }
-
-            Task<Void> task = batch.commit();
-            Tasks.await(task);
-        } catch (ExecutionException e) {
-            Log.e(TAG, e.getMessage(), e);
-        } catch (InterruptedException e) {
-            Log.e(TAG, e.getMessage(), e);
+        for (String locCode : locCodes) {
+            // Add a new document with a generated ID;
+            Task<QuerySnapshot> task = mFirebaseFirestore
+                    .collection("corona-infos")
+                    .document(locCode)
+                    .collection("users")
+                    .get()
+                    .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                        @Override
+                        public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                            QuerySnapshot snap = task.getResult();
+                            if (snap != null) {
+                                WriteBatch batch2 = mFirebaseFirestore.batch();
+                                for (QueryDocumentSnapshot document : snap) {
+                                    batch2.delete(document.getReference());
+                                }
+                                batch2.commit();
+                            }
+                        }
+                    });
         }
+
+        batch.commit();
     }
 
     public static void maintainace() {

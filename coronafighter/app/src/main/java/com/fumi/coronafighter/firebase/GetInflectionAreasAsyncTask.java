@@ -11,6 +11,16 @@ import java.util.concurrent.ExecutionException;
 public class GetInflectionAreasAsyncTask extends AsyncTask<Void, Integer, Collection<WeightedLatLng>> {
     private static final String TAG = "GetInflectionAreasAsyncTask";
 
+    public interface Callback {
+        public void setInflectionAreas(Collection<WeightedLatLng> result);
+    }
+
+    public Callback callback = null;
+
+    public GetInflectionAreasAsyncTask(Callback callback) {
+        this.callback = callback;
+    }
+
     @Override
     protected Collection<WeightedLatLng> doInBackground(Void... voids) {
         try {
@@ -26,13 +36,8 @@ public class GetInflectionAreasAsyncTask extends AsyncTask<Void, Integer, Collec
 
     @Override
     protected void onPostExecute(Collection<WeightedLatLng> result) {
-        if (result == null) {
-            return;
+        if (callback != null) {
+            callback.setInflectionAreas(result);
         }
-        FireStore.mInflectionAreas.clear();
-        FireStore.mInflectionAreas.addAll(result);
-        Log.d(TAG, "inflected areas data cnt: " + FireStore.mInflectionAreas.size());
-
-        FireStore.mViewModel.selectAlertAreas(FireStore.mInflectionAreas);
     }
 }
