@@ -1,7 +1,7 @@
 package com.fumi.coronafighter.ui.notifications;
 
 import android.Manifest;
-import android.app.Application;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
@@ -17,23 +17,16 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.lifecycle.ViewModelStoreOwner;
+import androidx.preference.PreferenceManager;
 
-import com.fumi.coronafighter.AlarmAreasViewModel;
 import com.fumi.coronafighter.AlarmInfo;
 import com.fumi.coronafighter.Constants;
-import com.fumi.coronafighter.CoronaFighterApplication;
-import com.fumi.coronafighter.CurrentPositionViewModel;
 import com.fumi.coronafighter.MainActivity;
 import com.fumi.coronafighter.R;
 import com.fumi.coronafighter.SettingInfos;
+import com.fumi.coronafighter.Utils;
 import com.fumi.coronafighter.firebase.FireStore;
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -75,11 +68,18 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
     private FusedLocationProviderClient mFusedLocationClient;
     AlarmTask mAlarmTask = null;
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.fragment_notifications, container, false);
+    @Override
+    public void onCreate(@NonNull Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
 
         setHasOptionsMenu(true);
+    }
+
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container, Bundle savedInstanceState) {
+        super.onCreateView(inflater, container, savedInstanceState);
+
+        View root = inflater.inflate(R.layout.fragment_notifications, container, false);
 
         mAuth = FirebaseAuth.getInstance();
 
@@ -87,8 +87,6 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
-        setHasOptionsMenu(true);
 
         return root;
     }
@@ -116,12 +114,15 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
                 ((MainActivity)getActivity()).signOut();
                 break;
             case R.id.refresh_inflection_areas:
-                mAlarmTask = new AlarmTask();
-                mAlarmTask.execute();
+                if (mAlarmTask != null && mAlarmTask.getStatus() == AsyncTask.Status.FINISHED ) {
+                    mAlarmTask = new AlarmTask();
+                    mAlarmTask.execute();
+                }
 
                 break;
         }
-        return false;
+
+        return super.onOptionsItemSelected(item);
     }
 
 
@@ -201,6 +202,7 @@ public class NotificationsFragment extends Fragment implements OnMapReadyCallbac
     }
 
     public static Date refreshAlarmAreasTime = null;
+
     public class AlarmTask extends AsyncTask<Void, Void, ArrayList<AlarmInfo>> {
         @Override
         protected ArrayList<AlarmInfo> doInBackground(Void... voids) {

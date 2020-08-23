@@ -3,9 +3,11 @@ package com.fumi.coronafighter;
 import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.firebase.ui.auth.AuthUI;
@@ -35,6 +37,7 @@ import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
+import androidx.preference.PreferenceManager;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,7 +49,7 @@ public class MainActivity extends AppCompatActivity
     private FirebaseAuth mAuth;
 
     private FirebaseFirestore mFirebaseFirestore;
-    private ListenerRegistration mListenerStatus;
+    private ListenerRegistration mListenerStatus = null;
 
     private static final int RC_SIGN_IN = 123;
 
@@ -289,9 +292,25 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onStop() {
-        mListenerStatus.remove();
+        if (mListenerStatus != null) {
+            mListenerStatus.remove();
+        }
 
         super.onStop();
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.trace_position_start:
+                requestLocationUpdates();
+                break;
+            case R.id.trace_position_stop:
+                removeLocationUpdates();
+                break;
+        }
+
+        return false;
+    }
 }

@@ -11,14 +11,23 @@
     <item
         android:id="@+id/logout"
         android:title="@string/logout"
-        app:showAsAction="collapseActionView" />
+        app:showAsAction="never" />
     <item
         android:id="@+id/infection_report"
         android:title="@string/infection_report"
-        app:showAsAction="collapseActionView" />
+        app:showAsAction="never" />
     <item
         android:id="@+id/infection_report_cancel"
         android:title="@string/infection_report_cancel"
-        app:showAsAction="collapseActionView" />
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/trace_position_start"
+        android:title="@string/trace_position_start"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/trace_position_stop"
+        android:title="@string/trace_position_stop"
+        app:showAsAction="never" />
 
 </menu>

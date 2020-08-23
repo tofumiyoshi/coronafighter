@@ -26,10 +26,10 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Build;
-import android.preference.PreferenceManager;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.TaskStackBuilder;
+import androidx.preference.PreferenceManager;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -38,10 +38,10 @@ import java.util.List;
 /**
  * Utility methods used in this sample.
  */
-class Utils {
+public class Utils {
 
-    final static String KEY_LOCATION_UPDATES_REQUESTED = "location-updates-requested";
-    final static String KEY_LOCATION_UPDATES_RESULT = "location-update-result";
+    public final static String KEY_LOCATION_UPDATES_REQUESTED = "location-updates-requested";
+    public final static String KEY_LOCATION_UPDATES_RESULT = "location-update-result";
     final static String CHANNEL_ID = "channel_01";
 
     static void setRequestingLocationUpdates(Context context, boolean value) {

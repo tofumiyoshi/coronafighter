@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 
 // 感染された方の位置履歴を即時感染エリアに追加する。
-exports.userTraceListener = functions
+exports.userTraceListenerCreate = functions
     .region('asia-northeast1')
     .firestore
     .document('users/{userid}/trace-infos/{traceid}')
@@ -30,7 +30,7 @@ exports.userTraceListener = functions
 });
 
 // 感染された方の位置履歴を即時感染エリアから削除する。
-exports.userTraceListener = functions
+exports.userTraceListenerDelete = functions
     .region('asia-northeast1')
     .firestore
     .document('users/{userid}/trace-infos/{traceid}')
@@ -48,7 +48,7 @@ exports.userTraceListener = functions
 
 
 // 即時感染エリア作成時、感染密度を更新する。
-exports.addInflectionListener = functions
+exports.InflectionListenerCreate = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
@@ -61,7 +61,7 @@ exports.addInflectionListener = functions
 });
 
 // 即時感染エリア削除時、感染密度を更新する。
-exports.delInflectionListener = functions
+exports.InflectionListenerDelete = functions
     .region('asia-northeast1')
     .firestore
     .document('corona-infos/{locationcode}/users/{userid}')
@@ -75,7 +75,7 @@ exports.delInflectionListener = functions
 
 // ユーザーの感染報告された場合、位置履歴を感染エリアに追加する。
 // ユーザーの感染報告取り消された場合、位置履歴を感染エリアに削除する。
-exports.userInflectionReportListener = functions
+exports.userInflectionReportListenerUpdate = functions
     .region('asia-northeast1')
     .firestore
     .document('users/{userid}/infos/status')

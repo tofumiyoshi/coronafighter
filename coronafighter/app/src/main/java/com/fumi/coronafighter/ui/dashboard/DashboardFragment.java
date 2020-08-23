@@ -3,8 +3,8 @@ package com.fumi.coronafighter.ui.dashboard;
 import android.app.AlertDialog;
 import android.app.Application;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.location.Location;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -15,14 +15,15 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.preference.PreferenceManager;
 
 import com.fumi.coronafighter.Constants;
 import com.fumi.coronafighter.MainActivity;
 import com.fumi.coronafighter.R;
 import com.fumi.coronafighter.SettingInfos;
+import com.fumi.coronafighter.Utils;
 import com.fumi.coronafighter.firebase.FireStore;
 import com.fumi.coronafighter.firebase.GetInflectionAreasAsyncTask;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -77,12 +78,31 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
 
     private FirebaseFirestore mFirebaseFirestore;
     private ListenerRegistration mListenerStatus;
+    SharedPreferences mSharedPreferences;
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.fragment_dashboard, container, false);
+    @Override
+    public void onCreate(@NonNull Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
 
         setHasOptionsMenu(true);
+        mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        mSharedPreferences.registerOnSharedPreferenceChangeListener(
+                new SharedPreferences.OnSharedPreferenceChangeListener() {
+                    @Override
+                    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+                        if (key.equals(Utils.KEY_LOCATION_UPDATES_REQUESTED)) {
+                            getActivity().getFragmentManager().invalidateOptionsMenu();
+                        }
+                    }
+                });
+    }
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container, Bundle savedInstanceState) {
+        super.onCreateView(inflater, container, savedInstanceState);
+
+        View root = inflater.inflate(R.layout.fragment_dashboard, container, false);
 
         mAuth = FirebaseAuth.getInstance();
 
@@ -93,13 +113,13 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getContext());
         mLocationCallback = new LocationCallback(){
-                                        public void onLocationResult(LocationResult result) {
-                                            Location location = result.getLastLocation();
-                                            if (location != null) {
-                                                refreshLocation(location);
-                                            }
-                                        }
-                                    };
+            public void onLocationResult(LocationResult result) {
+                Location location = result.getLastLocation();
+                if (location != null) {
+                    refreshLocation(location);
+                }
+            }
+        };
         createLocationRequest();
 
         return root;
@@ -192,6 +212,7 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
             zoom = SettingInfos.map_default_zoom;
         }
 
+
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
         CameraUpdate camera = CameraUpdateFactory.newLatLngZoom(latLng, zoom);
         // カメラの位置に移動
@@ -254,8 +275,8 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        super.onCreateOptionsMenu(menu, inflater);
         inflater.inflate(R.menu.menu_dashboard, menu);
+        super.onCreateOptionsMenu(menu, inflater);
 
         if (FireStore.infection_flag == 0) {
             MenuItem item = menu.findItem(R.id.infection_report);
@@ -270,6 +291,22 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
 
             MenuItem item2 = menu.findItem(R.id.infection_report_cancel);
             item2.setEnabled(true);
+        }
+
+        boolean tracePositionFlag = mSharedPreferences.getBoolean(Utils.KEY_LOCATION_UPDATES_REQUESTED, true);
+        if (tracePositionFlag) {
+            MenuItem item = menu.findItem(R.id.trace_position_start);
+            item.setEnabled(false);
+
+            MenuItem item2 = menu.findItem(R.id.trace_position_stop);
+            item2.setEnabled(true);
+        }
+        else {
+            MenuItem item = menu.findItem(R.id.trace_position_start);
+            item.setEnabled(true);
+
+            MenuItem item2 = menu.findItem(R.id.trace_position_stop);
+            item2.setEnabled(false);
         }
     }
 
@@ -314,7 +351,8 @@ public class DashboardFragment extends Fragment implements OnMapReadyCallback, G
                 refreshInflectionAreas((LatLng) null);
                 break;
         }
-        return false;
+
+        return super.onOptionsItemSelected(item);
     }
 
     /**
